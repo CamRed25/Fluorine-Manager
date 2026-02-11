@@ -1,0 +1,4 @@
+#!/bin/bash
+# Fluorine Manager - thin wrapper around ModOrganizer
+MO2_DIR="$(cd "$(dirname "$0")" && pwd)"
+exec "${MO2_DIR}/ModOrganizer" "$@"

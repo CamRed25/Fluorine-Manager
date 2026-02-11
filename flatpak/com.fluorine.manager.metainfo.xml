@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.fluorine.manager</id>
+  <name>Fluorine Manager</name>
+  <summary>Mod Organizer 2 for Linux</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <description>
+    <p>
+      Fluorine Manager is a Linux port of Mod Organizer 2, a powerful mod management
+      tool for Bethesda games and other titles. It uses a virtual filesystem to keep
+      your game directory clean while allowing complex mod setups with load order
+      management, conflict resolution, and profile support.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Virtual filesystem - mods never touch your game folder</li>
+      <li>Profile system for different mod configurations</li>
+      <li>Plugin load order management</li>
+      <li>Mod conflict detection and resolution</li>
+      <li>Nexus Mods integration for downloading</li>
+      <li>Proton/Wine prefix management for running Windows games</li>
+      <li>UMU launcher support</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">com.fluorine.manager.desktop</launchable>
+
+  <url type="homepage">https://github.com/ModOrganizer2/modorganizer</url>
+  <url type="bugtracker">https://github.com/ModOrganizer2/modorganizer/issues</url>
+
+  <provides>
+    <binary>fluorine-manager</binary>
+  </provides>
+
+  <content_rating type="oars-1.1" />
+</component>

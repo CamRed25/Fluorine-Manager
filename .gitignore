@@ -1,0 +1,28 @@
+# Build artifacts
+build/
+build-container/
+build-container-2404/
+build-container-2404-gcc14/
+
+# Rust build artifacts
+target/
+
+# Flatpak build cache and artifacts
+.flatpak-builder/
+.flatpak-build/
+flatpak-repo/
+flatpak/builddir/
+*.flatpak
+
+# Logs
+*.log
+
+# IDE / editor
+.vscode/
+.idea/
+compile_commands.json
+.cache/
+
+# OS junk
+.DS_Store
+Thumbs.db

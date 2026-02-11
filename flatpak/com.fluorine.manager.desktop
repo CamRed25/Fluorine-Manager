@@ -1,0 +1,22 @@
+[Desktop Entry]
+Type=Application
+Name=Fluorine Manager
+GenericName=Mod Manager
+Comment=Mod Organizer 2 for Linux - manage your game mods
+Exec=fluorine-manager
+Icon=com.fluorine.manager
+Terminal=false
+Categories=Game;Utility;
+Keywords=mod;organizer;modding;skyrim;fallout;
+MimeType=x-scheme-handler/nxm;
+Actions=create-portable;list-instances;
+
+[Desktop Action create-portable]
+Name=Create Portable Instance
+Exec=fluorine-manager create-portable
+Icon=com.fluorine.manager
+
+[Desktop Action list-instances]
+Name=List Instances
+Exec=fluorine-manager list-instances
+Icon=com.fluorine.manager
