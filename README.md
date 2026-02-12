@@ -1,6 +1,6 @@
 # Fluorine Manager
 
-Fluorine Manager an attempt at porting MO2 to linux with FUSE as the VFS system.
+Fluorine Manager an attempt at porting [MO2 (Mod Organizer 2)](https://github.com/ModOrganizer2/modorganizer) to linux with FUSE as the VFS system.
 
 <img width="4134" height="2453" alt="image" src="https://github.com/user-attachments/assets/887e042a-db74-43f8-a5aa-735d18d94cc9" />
 
