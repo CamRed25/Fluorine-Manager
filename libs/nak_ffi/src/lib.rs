@@ -7,7 +7,7 @@
 //! - `NakKnownGame` pointers are static data and must NOT be freed
 
 use std::ffi::{c_char, c_float, c_int, CStr, CString};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Mutex};
@@ -37,6 +37,20 @@ unsafe fn from_cstr<'a>(p: *const c_char) -> &'a str {
 
 fn error_to_cstring(e: Box<dyn std::error::Error>) -> *mut c_char {
     to_cstring(&e.to_string())
+}
+
+/// Find a Proton installation by path, using canonicalization to handle
+/// symlinks and path normalization (e.g. system Protons in
+/// /usr/share/steam/compatibilitytools.d/).
+fn find_proton_by_path(proton_path_str: &str) -> Option<nak_rust::steam::SteamProton> {
+    let target = std::fs::canonicalize(proton_path_str)
+        .unwrap_or_else(|_| PathBuf::from(proton_path_str));
+    nak_rust::steam::find_steam_protons()
+        .into_iter()
+        .find(|p| {
+            std::fs::canonicalize(&p.path)
+                .unwrap_or_else(|_| p.path.clone()) == target
+        })
 }
 
 // ============================================================================
@@ -365,13 +379,9 @@ pub unsafe extern "C" fn nak_install_all_dependencies(
     let _proton_name = unsafe { from_cstr(proton_name) };
     let proton_path_str = unsafe { from_cstr(proton_path) };
 
-    // Find the matching SteamProton by path
-    let protons = nak_rust::steam::find_steam_protons();
-    let proton = match protons
-        .iter()
-        .find(|p| p.path.to_string_lossy() == proton_path_str)
-    {
-        Some(p) => p.clone(),
+    // Find the matching SteamProton by path (canonicalized for symlink support)
+    let proton = match find_proton_by_path(proton_path_str) {
+        Some(p) => p,
         None => {
             return to_cstring(&format!(
                 "Proton not found at path: {}",
@@ -454,12 +464,8 @@ pub unsafe extern "C" fn nak_apply_wine_registry_settings(
     let _proton_name = unsafe { from_cstr(proton_name) };
     let proton_path_str = unsafe { from_cstr(proton_path) };
 
-    let protons = nak_rust::steam::find_steam_protons();
-    let proton = match protons
-        .iter()
-        .find(|p| p.path.to_string_lossy() == proton_path_str)
-    {
-        Some(p) => p.clone(),
+    let proton = match find_proton_by_path(proton_path_str) {
+        Some(p) => p,
         None => {
             return to_cstring(&format!(
                 "Proton not found at path: {}",
@@ -507,12 +513,8 @@ pub unsafe extern "C" fn nak_apply_registry_for_game_path(
     let game = unsafe { from_cstr(game_name) };
     let install = unsafe { from_cstr(install_path) };
 
-    let protons = nak_rust::steam::find_steam_protons();
-    let proton = match protons
-        .iter()
-        .find(|p| p.path.to_string_lossy() == proton_path_str)
-    {
-        Some(p) => p.clone(),
+    let proton = match find_proton_by_path(proton_path_str) {
+        Some(p) => p,
         None => {
             return to_cstring(&format!(
                 "Proton not found at path: {}",

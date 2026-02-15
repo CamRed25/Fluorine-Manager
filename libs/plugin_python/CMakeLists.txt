@@ -7,6 +7,9 @@ set(MO2_QT_VERSION_MAJOR 6)
 
 find_package(Python COMPONENTS Interpreter Development REQUIRED)
 find_package(pybind11 CONFIG REQUIRED)
+if(pybind11_VERSION VERSION_GREATER_EQUAL "2.14")
+  message(WARNING "pybind11 ${pybind11_VERSION} detected. Versions >= 2.14 may cause build errors with MO2's Python plugin. Use 2.13.x or build with the container (./build-native.sh).")
+endif()
 
 get_filename_component(Python_HOME ${Python_EXECUTABLE} PATH)
 set(Python_DLL_DIR "${Python_HOME}")

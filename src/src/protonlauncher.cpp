@@ -397,6 +397,9 @@ bool ProtonLauncher::launchWithUmu(qint64& pid) const
         umuRun = system;
       }
     }
+
+    MOBase::log::info("umu-run: preferSystem={}, bundled='{}' (exists={}), system='{}', selected='{}'",
+        m_preferSystemUmu, bundled, QFileInfo::exists(bundled), system, umuRun);
   }
 
   if (umuRun.isEmpty()) {

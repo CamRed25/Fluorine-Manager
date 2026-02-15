@@ -210,6 +210,12 @@ for tool in wrestool icotool lootcli; do
     [ -f "${OUT_DIR}/${tool}" ] && strip --strip-unneeded "${OUT_DIR}/${tool}" 2>/dev/null || true
 done
 
+# ── Fix RPATH so binaries find libs without LD_LIBRARY_PATH ──
+echo "Patching RPATH..."
+patchelf --set-rpath '$ORIGIN/lib' "${OUT_DIR}/ModOrganizer-core"
+[ -f "${OUT_DIR}/lootcli" ] && patchelf --set-rpath '$ORIGIN/lib' "${OUT_DIR}/lootcli"
+find "${OUT_DIR}/plugins" -name "*.so" -exec patchelf --set-rpath '$ORIGIN/../lib' {} \; 2>/dev/null || true
+
 # ── Validate embedded Python runtime ──
 cat > /tmp/mo2_embed_py_check.c <<'C'
 #include <Python.h>

@@ -621,6 +621,9 @@ void InstanceManager::setCurrentInstance(const QString& name)
 
 QString InstanceManager::instancePath(const QString& instanceName) const
 {
+  if (QDir::isAbsolutePath(instanceName)) {
+    return QDir::fromNativeSeparators(instanceName);
+  }
   return QDir::fromNativeSeparators(globalInstancesRootPath() + "/" + instanceName);
 }
 
