@@ -62,25 +62,22 @@ Requires podman (or docker). The container handles all dependencies automaticall
 
 If you want to build directly on your system without a container, you need:
 
-**Build tools:** GCC/Clang, CMake, Ninja, Rust toolchain, pkg-config, patchelf
+**Build tools:** GCC/Clang, CMake, Ninja, Rust toolchain, pkg-config, patchelf, [uv](https://docs.astral.sh/uv/)
 
 **Libraries:**
 - Qt 6 (base, webengine, websockets, wayland)
 - Boost (program_options, thread)
-- Python 3 dev headers, pybind11, PyQt6
 - spdlog, toml++, tinyxml2, sqlite3, fontconfig
 - libfuse3, lz4, zlib, zstd, bzip2, lzma
 - OpenSSL, libcurl
 
-**Python packages:** `sip` (build tools), `psutil`, `vdf`
+Python 3.13, pybind11, and all Python packages (sip, psutil, vdf) are managed automatically by `uv` during the CMake configure step — no system Python dev packages needed.
 
 Then build:
 ```bash
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_PLUGIN_PYTHON=ON
 cmake --build build --parallel
 ```
-
-Note: `python-sip` (the build tools package providing `sipbuild`) is required in addition to `python-pyqt6-sip` (the runtime module). If you see `ModuleNotFoundError: No module named 'sipbuild'`, install `python-sip`.
 
 ## Known Limitations
 

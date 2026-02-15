@@ -165,35 +165,35 @@ if(BUILD_BSA_FFI)
 endif()
 
 if(BUILD_PLUGIN_PYTHON)
-  set(_mo2_pyvenv "${CMAKE_SOURCE_DIR}/build/pyvenv")
-  set(_mo2_pyvenv_python "${_mo2_pyvenv}/bin/python")
+  # If an explicit Python executable was provided (Docker/CI), use it directly.
+  # Otherwise, bootstrap a local venv with uv for source builds.
+  if(NOT DEFINED Python_EXECUTABLE OR NOT Python_EXECUTABLE)
+    set(_mo2_pyvenv "${CMAKE_SOURCE_DIR}/build/pyvenv")
+    set(_mo2_pyvenv_python "${_mo2_pyvenv}/bin/python")
 
-  # Bootstrap a local Python venv with uv if the pyvenv doesn't exist yet.
-  if(NOT EXISTS "${_mo2_pyvenv_python}")
-    find_program(_uv_exe uv)
-    if(_uv_exe)
+    if(NOT EXISTS "${_mo2_pyvenv_python}")
+      find_program(_uv_exe uv REQUIRED)
       message(STATUS "Bootstrapping Python venv with uv...")
       execute_process(
         COMMAND ${_uv_exe} venv "${_mo2_pyvenv}" --python 3.13 --seed
         RESULT_VARIABLE _uv_venv_rc)
-      if(_uv_venv_rc EQUAL 0)
-        execute_process(
-          COMMAND ${_uv_exe} pip install --python "${_mo2_pyvenv_python}"
-                  pybind11 psutil vdf
-          RESULT_VARIABLE _uv_pip_rc)
-        if(NOT _uv_pip_rc EQUAL 0)
-          message(WARNING "uv pip install failed (rc=${_uv_pip_rc})")
-        endif()
-      else()
-        message(WARNING "uv venv creation failed (rc=${_uv_venv_rc})")
+      if(NOT _uv_venv_rc EQUAL 0)
+        message(FATAL_ERROR
+          "uv venv creation failed (rc=${_uv_venv_rc}). "
+          "Install uv: https://docs.astral.sh/uv/")
+      endif()
+      execute_process(
+        COMMAND ${_uv_exe} pip install --python "${_mo2_pyvenv_python}"
+                pybind11==2.13.6 sip psutil vdf
+        RESULT_VARIABLE _uv_pip_rc)
+      if(NOT _uv_pip_rc EQUAL 0)
+        message(FATAL_ERROR "uv pip install failed (rc=${_uv_pip_rc})")
       endif()
     endif()
-  endif()
 
-  if(EXISTS "${_mo2_pyvenv_python}")
     set(Python_EXECUTABLE "${_mo2_pyvenv_python}" CACHE FILEPATH
       "Python executable for plugin_python build" FORCE)
-    # Detect pybind11 cmake dir dynamically (version-independent path).
+    # Detect pybind11 cmake dir dynamically.
     execute_process(
       COMMAND "${_mo2_pyvenv_python}" -c
         "import pybind11; print(pybind11.get_cmake_dir())"

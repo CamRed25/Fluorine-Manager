@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+BUILD_PY="${BUILD_PYTHON:-$(command -v python3)}"
+
 # ── Build ──
+PYBIND11_DIR="$("${BUILD_PY}" -c 'import pybind11; print(pybind11.get_cmake_dir())' 2>/dev/null || true)"
+
 cmake -S . -B build -G Ninja \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-    -DPython3_EXECUTABLE="$(command -v python3)" \
+    -DPython_EXECUTABLE="${BUILD_PY}" \
+    ${PYBIND11_DIR:+-Dpybind11_DIR="${PYBIND11_DIR}"} \
     -DBUILD_PLUGIN_PYTHON=ON
 
 cmake --build build --parallel
@@ -16,7 +21,7 @@ if [ ! -f "${MODORG_BIN}" ]; then
 fi
 RUNDIR="build/src/src"
 
-PY_MM="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+PY_MM="$("${BUILD_PY}" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 
 # ── Output layout (staging area — installed to ~/.local/share/fluorine by build-native.sh) ──
 OUT_DIR="/src/build/staging"
@@ -38,7 +43,7 @@ if [ -f "${RUNDIR}/umu-run" ]; then
     #    Steam games (SteamAppId != "0") we delete UMU_ID so Proton uses the
     #    correct steam.exe launch path.
     UMU_PATCH_DIR="$(mktemp -d)"
-    (cd "${UMU_PATCH_DIR}" && python3 << PATCHEOF
+    (cd "${UMU_PATCH_DIR}" && "${BUILD_PY}" << PATCHEOF
 import zipfile, pathlib
 zf = zipfile.ZipFile('/src/${RUNDIR}/umu-run')
 zf.extractall('src')
@@ -67,7 +72,7 @@ if old2 in src and 'del os.environ["UMU_ID"]' not in src:
 run_py.write_text(src)
 PATCHEOF
 )
-    python3 -m zipapp "${UMU_PATCH_DIR}/src" -o "${OUT_DIR}/umu-run" -p '/usr/bin/env python3'
+    "${BUILD_PY}" -m zipapp "${UMU_PATCH_DIR}/src" -o "${OUT_DIR}/umu-run" -p '/usr/bin/env python3'
     chmod +x "${OUT_DIR}/umu-run"
     rm -rf "${UMU_PATCH_DIR}"
 fi
@@ -187,15 +192,8 @@ for search_dir in /usr/lib/python3/dist-packages \
     fi
 done
 
-# Bundle pip-installed Python packages (psutil etc.).
-for search_dir in "/usr/local/lib/python${PY_MM}/dist-packages" \
-                  /usr/lib/python3/dist-packages \
-                  "/usr/lib/python${PY_MM}/dist-packages"; do
-    for pkg in psutil vdf; do
-        [ -d "${search_dir}/${pkg}" ] && [ ! -d "${PYSITE}/${pkg}" ] && \
-            cp -a "${search_dir}/${pkg}" "${PYSITE}/"
-    done
-done
+# Install Python packages into portable runtime via uv.
+uv pip install --python "${OUT_DIR}/python/bin/python3" psutil vdf
 
 # Build-tree Python plugin payload.
 [ -d build/src/src/python ] && cp -a build/src/src/python/. "${OUT_DIR}/python/"
@@ -217,27 +215,11 @@ patchelf --set-rpath '$ORIGIN/lib' "${OUT_DIR}/ModOrganizer-core"
 find "${OUT_DIR}/plugins" -name "*.so" -exec patchelf --set-rpath '$ORIGIN/../lib' {} \; 2>/dev/null || true
 
 # ── Validate embedded Python runtime ──
-cat > /tmp/mo2_embed_py_check.c <<'C'
-#include <Python.h>
-int main(void) {
-  Py_Initialize();
-  int rc = PyRun_SimpleString(
-      "import zlib\n"
-      "import runpy\n"
-      "import zipimport\n"
-      "print('python embed check ok')\n");
-  if (PyErr_Occurred()) {
-    PyErr_Print();
-  }
-  Py_Finalize();
-  return rc;
-}
-C
-gcc /tmp/mo2_embed_py_check.c -o /tmp/mo2_embed_py_check $(python3-config --embed --cflags --ldflags)
 if ! PYTHONHOME="${OUT_DIR}/python" \
      PYTHONPATH="${OUT_DIR}/python/lib/python${PY_MM}:${PYSITE}" \
      LD_LIBRARY_PATH="${OUT_DIR}/lib:${OUT_DIR}/python/lib:${LD_LIBRARY_PATH:-}" \
-     /tmp/mo2_embed_py_check; then
+     "${OUT_DIR}/python/bin/python3" -c \
+     "import zlib; import runpy; import zipimport; print('python embed check ok')"; then
     echo "ERROR: Embedded Python runtime check failed."
     exit 1
 fi

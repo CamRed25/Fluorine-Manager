@@ -19,7 +19,6 @@ finish-args:
   - --filesystem=~/.steam:ro
   - --filesystem=~/.local/share/Steam
   - --filesystem=~/.var/app/com.valvesoftware.Steam:ro
-  - --filesystem=/usr/share/steam:ro
   - --talk-name=org.freedesktop.Flatpak
 
 cleanup:
@@ -91,18 +90,7 @@ modules:
         url: https://github.com/libfuse/libfuse.git
         tag: fuse-3.16.2
 
-  # ── 6. pybind11 ──
-  - name: pybind11
-    buildsystem: cmake-ninja
-    config-opts:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DPYBIND11_TEST=OFF
-    sources:
-      - type: git
-        url: https://github.com/pybind/pybind11.git
-        tag: v2.13.6
-
-  # ── 7. libloot ──
+  # ── 6. libloot ──
   # libloot has a Rust crate at the root and a C++ cmake project in cpp/.
   # The Rust static library must be built first, then cmake links against it.
   - name: libloot
@@ -146,7 +134,7 @@ modules:
         url: https://github.com/loot/libloot.git
         branch: master
 
-  # ── 8. icoutils ──
+  # ── 7. icoutils ──
   - name: icoutils
     buildsystem: autotools
     build-options:
@@ -157,7 +145,7 @@ modules:
         url: https://download.savannah.gnu.org/releases/icoutils/icoutils-0.32.3.tar.bz2
         sha256: 17abe02d043a253b68b47e3af69c9fc755b895db68fdc8811786125df564c6e0
 
-  # ── 9. cabextract ──
+  # ── 8. cabextract ──
   # Required by winetricks for extracting Windows cab archives.
   - name: cabextract
     buildsystem: autotools
@@ -166,7 +154,7 @@ modules:
         url: https://www.cabextract.org.uk/cabextract-1.11.tar.gz
         sha256: b5546db1155e4c718ff3d4b278573604f30dd64c3c5bfd4657cd089b823a3ac6
 
-  # ── 10. Portable Python runtime ──
+  # ── 9. Portable Python runtime ──
   # Pre-built Python used as the embedded interpreter for MO2's Python plugins.
   # pip packages are installed via network during build (--share=network).
   - name: portable-python
@@ -200,9 +188,10 @@ modules:
                2>/dev/null || true
         find /app/lib/fluorine/python -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
         find /app/lib/fluorine/python -name "*.pyc" -delete 2>/dev/null || true
-        # Install pip packages (PyQt6 for plugin UI, psutil, vdf).
-        /app/lib/fluorine/python/bin/python3 -m ensurepip --default-pip 2>/dev/null || true
-        /app/lib/fluorine/python/bin/python3 -m pip install --no-cache-dir PyQt6 psutil vdf
+        # Install uv for Python package management.
+        curl -LsSf https://astral.sh/uv/install.sh | INSTALLER_NO_MODIFY_PATH=1 UV_INSTALL_DIR=/app/bin sh
+        # Install Python packages via uv (PyQt6 for plugin UI, psutil, vdf).
+        /app/bin/uv pip install --python /app/lib/fluorine/python/bin/python3 PyQt6 psutil vdf
     sources:
       - type: file
         url: https://github.com/bjia56/portable-python/releases/download/cpython-v3.13.9-build.0/python-headless-3.13.9-linux-x86_64.zip
@@ -210,6 +199,7 @@ modules:
         dest-filename: portable-python.zip
 
   # ── 10. Fluorine Manager (main project) ──
+  # uv (installed in portable-python step) handles pybind11 + sip for the build.
   - name: fluorine
     buildsystem: simple
     build-options:
@@ -221,14 +211,18 @@ modules:
       build-args:
         - --share=network
     build-commands:
-      # Install sip build tools into /app (SDK /usr is read-only).
-      - /usr/bin/python3 -m pip install --target=/app/lib/python3/dist-packages sip
-
       # ── Configure and build ──
+      # Install pybind11 + sip into /app (SDK /usr is read-only).
+      # Uses SDK's python3 directly (not a venv) so find_package(Python)
+      # finds Development headers on cmake reconfiguration.
       - |
+        /app/bin/uv pip install --target /app/lib/python3/dist-packages pybind11==2.13.6 sip
+        PYBIND11_DIR="$(python3 -c 'import pybind11; print(pybind11.get_cmake_dir())')"
         cmake -S . -B _build -G Ninja \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_PREFIX_PATH=/app \
+          -DPython_EXECUTABLE=/usr/bin/python3 \
+          -Dpybind11_DIR="${PYBIND11_DIR}" \
           -DBUILD_PLUGIN_PYTHON=ON
       - cmake --build _build --parallel
 

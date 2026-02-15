@@ -27,15 +27,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libqt6websockets6-dev \
     qt6-wayland \
     # Python
-    python3 python3-dev python3-pip python3-venv \
-    pybind11-dev \
-    python3-pyqt6 \
+    python3 python3-pyqt6 \
     # Misc
     icoutils zip unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# ── Python SIP tooling + runtime deps ──
-RUN pip3 install --break-system-packages sip psutil vdf || true
+# ── uv (Python package manager) ──
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:${PATH}"
+
+# ── Build-time Python venv (pybind11, sip, etc.) ──
+RUN uv venv /opt/build-python --python 3.13 --seed && \
+    uv pip install --python /opt/build-python/bin/python \
+      pybind11==2.13.6 sip psutil vdf
+ENV BUILD_PYTHON=/opt/build-python/bin/python
+ENV PATH="/opt/build-python/bin:${PATH}"
 
 # ── Rust toolchain ──
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \

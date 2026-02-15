@@ -130,12 +130,25 @@ if(NOT WIN32)
         vfs/mo2filesystem.cpp
         vfs/inodetable.cpp
         vfs/overwritemanager.cpp)
-    # Statically link libfuse3 so the helper is fully self-contained (runs on
-    # the host via flatpak-spawn where the Flatpak SDK's .so files don't exist).
+    # Prefer static libfuse3 so the helper is fully self-contained (Flatpak
+    # runs it on the host via flatpak-spawn where SDK .so files don't exist).
+    # Fall back to shared linking for source builds where libfuse3.a isn't
+    # available (the helper still works since libfuse3.so is on the host).
+    find_library(_fuse3_static libfuse3.a PATHS ${FUSE3_LIBRARY_DIRS} NO_DEFAULT_PATH)
+    if(NOT _fuse3_static)
+      find_library(_fuse3_static libfuse3.a)
+    endif()
     target_link_directories(mo2-vfs-helper PRIVATE ${FUSE3_LIBRARY_DIRS})
-    target_link_libraries(mo2-vfs-helper PRIVATE
-        -Wl,-Bstatic -lfuse3 -Wl,-Bdynamic
-        Threads::Threads)
+    if(_fuse3_static)
+      target_link_libraries(mo2-vfs-helper PRIVATE
+          -Wl,-Bstatic -lfuse3 -Wl,-Bdynamic
+          Threads::Threads)
+    else()
+      message(STATUS "libfuse3.a not found, linking mo2-vfs-helper against shared libfuse3")
+      target_link_libraries(mo2-vfs-helper PRIVATE
+          PkgConfig::FUSE3
+          Threads::Threads)
+    endif()
     target_include_directories(mo2-vfs-helper PRIVATE ${FUSE3_INCLUDE_DIRS})
     target_compile_definitions(mo2-vfs-helper PRIVATE FUSE_USE_VERSION=35)
     target_compile_features(mo2-vfs-helper PRIVATE cxx_std_23)
@@ -261,6 +274,12 @@ if(NOT WIN32)
             message(WARNING "[MO2] umu-run not found after extraction")
         endif()
     endif()
+
+    # ── Deploy bundled stylesheets (themes) ──
+    add_custom_command(TARGET organizer POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/stylesheets"
+            "$<TARGET_FILE_DIR:organizer>/stylesheets")
 
     # Keep only the canonical Fallout NV plugin filename on Linux (case-sensitive FS).
     add_custom_command(TARGET organizer POST_BUILD
