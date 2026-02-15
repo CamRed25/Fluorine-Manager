@@ -40,6 +40,8 @@ If you want to support the things I put out, I do have a [Ko-Fi](https://ko-fi.c
 
 Both builds install to `~/.local/share/fluorine/` — the same location, so Flatpak and native share instances, plugins, and configs.
 
+NOTE: Native builds are available but are not officially supported by me. Please do not make an issue relating to something not working on the native build if it's working on the flatpak. If you want to report issues with the native build please do so in the discord under the tools testing channel.
+
 ### Flatpak (recommended for end users)
 
 ```bash
