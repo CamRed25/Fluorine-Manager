@@ -40,45 +40,13 @@ If you want to support the things I put out, I do have a [Ko-Fi](https://ko-fi.c
 
 Both builds install to `~/.local/share/fluorine/` — the same location, so Flatpak and native share instances, plugins, and configs.
 
-NOTE: Native builds are available but are not officially supported by me. Please do not make an issue relating to something not working on the native build if it's working on the flatpak. If you want to report issues with the native build please do so in the discord under the tools testing channel.
-
+NOTE: Native builds are available but are not officially supported by me. Please do not make an issue relating to something not working on the native build if it's working on the flatpak.
 ### Flatpak (recommended for end users)
 
 ```bash
 ./build-flatpak.sh bundle
 # Produces a .flatpak file you can install with:
 # flatpak install --user fluorine-manager.flatpak
-```
-
-### Native (container build)
-
-Requires podman (or docker). The container handles all dependencies automatically.
-
-```bash
-./build-native.sh
-# Builds inside a container, then installs to ~/.local/share/fluorine/
-# Creates a desktop entry and symlinks fluorine-manager into ~/.local/bin/
-```
-
-### Native (building from source on host)
-
-If you want to build directly on your system without a container, you need:
-
-**Build tools:** GCC/Clang, CMake, Ninja, Rust toolchain, pkg-config, patchelf, [uv](https://docs.astral.sh/uv/)
-
-**Libraries:**
-- Qt 6 (base, webengine, websockets, wayland)
-- Boost (program_options, thread)
-- spdlog, toml++, tinyxml2, sqlite3, fontconfig
-- libfuse3, lz4, zlib, zstd, bzip2, lzma
-- OpenSSL, libcurl
-
-Python 3.13, pybind11, and all Python packages (sip, psutil, vdf) are managed automatically by `uv` during the CMake configure step — no system Python dev packages needed.
-
-Then build:
-```bash
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_PLUGIN_PYTHON=ON
-cmake --build build --parallel
 ```
 
 ## Known Limitations
