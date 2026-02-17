@@ -1,6 +1,7 @@
 #include "mo2filesystem.h"
 
 #include <fcntl.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -13,7 +14,7 @@ namespace
 {
 namespace fs = std::filesystem;
 
-constexpr double TTL_SECONDS = 60.0 * 60.0 * 24.0 * 365.0;
+constexpr double TTL_SECONDS = 1.0;
 
 struct NodeSnapshot
 {
@@ -595,7 +596,7 @@ void mo2_rename(fuse_req_t req, fuse_ino_t parent, const char* name,
       const std::string over   = ctx->overwrite->overwritePath(newRelative);
       const std::string real   = fs::exists(staged) ? staged : over;
       ctx->tree->root.insertFile(splitPath(newRelative), real, oldSnap.size,
-                                 std::chrono::system_clock::now(), "Staging");
+                                 oldSnap.mtime, "Staging");
     }
   }
 
@@ -687,6 +688,44 @@ void mo2_setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int to_set,
     }
 
     updateFileNode(ctx, path, target, "Staging");
+  }
+
+  // Handle explicit timestamp changes (utimensat / Wine SetFileTime)
+  if ((to_set & (FUSE_SET_ATTR_MTIME | FUSE_SET_ATTR_MTIME_NOW |
+                 FUSE_SET_ATTR_ATIME | FUSE_SET_ATTR_ATIME_NOW)) != 0 &&
+      attr != nullptr) {
+    const auto snap = snapshotForPath(ctx, path);
+    if (snap.found && !snap.is_directory) {
+      // Apply the timestamp to the real file on disk
+      struct timespec times[2];
+      // atime
+      if (to_set & FUSE_SET_ATTR_ATIME_NOW) {
+        times[0].tv_sec  = 0;
+        times[0].tv_nsec = UTIME_NOW;
+      } else if (to_set & FUSE_SET_ATTR_ATIME) {
+        times[0] = attr->st_atim;
+      } else {
+        times[0].tv_sec  = 0;
+        times[0].tv_nsec = UTIME_OMIT;
+      }
+      // mtime
+      if (to_set & FUSE_SET_ATTR_MTIME_NOW) {
+        times[1].tv_sec  = 0;
+        times[1].tv_nsec = UTIME_NOW;
+      } else if (to_set & FUSE_SET_ATTR_MTIME) {
+        times[1] = attr->st_mtim;
+      } else {
+        times[1].tv_sec  = 0;
+        times[1].tv_nsec = UTIME_OMIT;
+      }
+
+      utimensat(AT_FDCWD, snap.real_path.c_str(), times, 0);
+
+      // Update the VFS tree node with the new mtime
+      if (to_set & (FUSE_SET_ATTR_MTIME | FUSE_SET_ATTR_MTIME_NOW)) {
+        updateFileNode(ctx, path, snap.real_path, "Staging");
+      }
+    }
   }
 
   const auto snap = snapshotForPath(ctx, path);
