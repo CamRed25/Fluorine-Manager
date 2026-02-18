@@ -31,7 +31,7 @@
 static void writeResponse(const std::string& msg)
 {
   std::string line = msg + "\n";
-  ::write(STDOUT_FILENO, line.data(), line.size());
+  [[maybe_unused]] ssize_t n = ::write(STDOUT_FILENO, line.data(), line.size());
 }
 
 static bool readLine(std::string& out, int timeoutMs)
@@ -236,7 +236,7 @@ int main()
     if (!workdir.empty()) {
       if (::chdir(workdir.c_str()) != 0) {
         int err = errno;
-        (void)::write(errPipe[1], &err, sizeof(err));
+        [[maybe_unused]] ssize_t n = ::write(errPipe[1], &err, sizeof(err));
         ::_exit(127);
       }
     }
@@ -253,7 +253,7 @@ int main()
 
     // If we get here, exec failed.
     int err = errno;
-    (void)::write(errPipe[1], &err, sizeof(err));
+    [[maybe_unused]] ssize_t n = ::write(errPipe[1], &err, sizeof(err));
     ::_exit(127);
   }
 
