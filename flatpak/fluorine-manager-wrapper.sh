@@ -61,6 +61,16 @@ setup_overlay() {
         [ -e "$target" ] || [ -L "$target" ] || ln -sf "$f" "$target"
     done
 
+    # Symlink bundled stylesheets (for themes)
+    # User can add custom .qss files to override or add themes.
+    mkdir -p "${USER_DIR}/stylesheets"
+    for f in "${BUNDLED}/stylesheets/"*; do
+        [ -e "$f" ] || continue
+        local base="$(basename "$f")"
+        local target="${USER_DIR}/stylesheets/${base}"
+        [ -e "$target" ] || [ -L "$target" ] || ln -sf "$f" "$target"
+    done
+
     # Symlink other bundled files (binaries, tools) directly
     for f in ModOrganizer-core lootcli wrestool icotool fusermount3 cabextract; do
         [ -e "${BUNDLED}/$f" ] || continue

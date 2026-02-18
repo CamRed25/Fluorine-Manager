@@ -198,6 +198,11 @@ uv pip install --python "${OUT_DIR}/python/bin/python3" psutil vdf
 # Build-tree Python plugin payload.
 [ -d build/src/src/python ] && cp -a build/src/src/python/. "${OUT_DIR}/python/"
 
+# ── Stylesheets / themes ──
+echo "Copying stylesheets..."
+mkdir -p "${OUT_DIR}/stylesheets"
+cp -a /src/src/src/stylesheets/. "${OUT_DIR}/stylesheets/"
+
 # ── Strip all MO2 binaries (not portable Python) ──
 echo "Stripping MO2 binaries..."
 strip --strip-unneeded "${OUT_DIR}/ModOrganizer-core" 2>/dev/null || true

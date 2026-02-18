@@ -7,6 +7,9 @@
 #include <questionboxmemory.h>
 #include <utility.h>
 
+#include <QDir>
+#include <QSet>
+
 using namespace MOBase;
 
 ThemeSettingsTab::ThemeSettingsTab(Settings& s, SettingsDialog& d) : SettingsTab(s, d)
@@ -52,14 +55,37 @@ void ThemeSettingsTab::addStyles()
 
   ui->styleBox->insertSeparator(ui->styleBox->count());
 
-  QDirIterator iter(QCoreApplication::applicationDirPath() + "/" +
-                        QString::fromStdWString(AppConfig::stylesheetsPath()),
-                    QStringList("*.qss"), QDir::Files);
+  // Collect stylesheet names from both bundled and user directories.
+  // User styles override bundled styles with the same name.
+  QSet<QString> seenFiles;
+  const QString ssRelPath = ToQString(AppConfig::stylesheetsPath());
 
-  while (iter.hasNext()) {
-    iter.next();
+  // User stylesheets first (basePath is ~/.local/share/fluorine/ when MO2_BASE_DIR set)
+  // Mark them with "(custom)" and record their names so bundled duplicates are skipped.
+  const QString userPath = AppConfig::basePath() + "/" + ssRelPath;
+  const QString bundledPath = QCoreApplication::applicationDirPath() + "/" + ssRelPath;
+  if (userPath != bundledPath && QDir(userPath).exists()) {
+    QDirIterator userIter(userPath, QStringList("*.qss"), QDir::Files,
+                          QDirIterator::FollowSymlinks);
+    while (userIter.hasNext()) {
+      userIter.next();
+      const QString fileName = userIter.fileName();
+      seenFiles.insert(fileName.toLower());
+      ui->styleBox->addItem(userIter.fileInfo().completeBaseName() + " (custom)", fileName);
+    }
+  }
 
-    ui->styleBox->addItem(iter.fileInfo().completeBaseName(), iter.fileName());
+  // Bundled stylesheets (applicationDirPath is /app/lib/fluorine in Flatpak)
+  // Skip any that were overridden by user styles.
+  QDirIterator bundledIter(bundledPath, QStringList("*.qss"), QDir::Files,
+                           QDirIterator::FollowSymlinks);
+  while (bundledIter.hasNext()) {
+    bundledIter.next();
+    const QString fileName = bundledIter.fileName();
+    if (!seenFiles.contains(fileName.toLower())) {
+      seenFiles.insert(fileName.toLower());
+      ui->styleBox->addItem(bundledIter.fileInfo().completeBaseName(), fileName);
+    }
   }
 }
 
@@ -75,7 +101,10 @@ void ThemeSettingsTab::selectStyle()
 
 void ThemeSettingsTab::onExploreStyles()
 {
-  QString ssPath = QCoreApplication::applicationDirPath() + "/" +
+  // Open the user stylesheets directory where custom styles can be added.
+  // Create it if it doesn't exist.
+  QString ssPath = AppConfig::basePath() + "/" +
                    ToQString(AppConfig::stylesheetsPath());
+  QDir().mkpath(ssPath);
   shell::Explore(ssPath);
 }

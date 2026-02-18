@@ -2649,8 +2649,11 @@ void MainWindow::openPluginsFolder()
 
 void MainWindow::openStylesheetsFolder()
 {
+  // Open the user stylesheets directory where custom styles can be added.
+  // Create it if it doesn't exist.
   QString ssPath = AppConfig::basePath() + "/" +
                    ToQString(AppConfig::stylesheetsPath());
+  QDir().mkpath(ssPath);
   shell::Explore(ssPath);
 }
 

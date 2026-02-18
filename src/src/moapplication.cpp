@@ -41,9 +41,12 @@ along with Mod Organizer.  If not, see <http://www.gnu.org/licenses/>.
 #include "thread_utils.h"
 #include "tutorialmanager.h"
 #include <QDebug>
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QPainter>
 #include <QProxyStyle>
+#include <QRegularExpression>
 #include <QSslSocket>
 #include <QStringList>
 #include <QStyleFactory>
@@ -675,13 +678,20 @@ bool MOApplication::setStyleFile(const QString& styleName)
   }
   // set new stylesheet or clear it
   if (styleName.length() != 0) {
-    QString styleSheetName = applicationDirPath() + "/" +
-                             MOBase::ToQString(AppConfig::stylesheetsPath()) + "/" +
-                             styleName;
-    if (QFile::exists(styleSheetName)) {
-      m_styleWatcher.addPath(styleSheetName);
-      updateStyle(styleSheetName);
+    const QString ssRelPath = MOBase::ToQString(AppConfig::stylesheetsPath());
+
+    // Check user stylesheets directory first (allows custom overrides)
+    QString styleSheetPath = AppConfig::basePath() + "/" + ssRelPath + "/" + styleName;
+    if (!QFile::exists(styleSheetPath)) {
+      // Fall back to bundled stylesheets
+      styleSheetPath = applicationDirPath() + "/" + ssRelPath + "/" + styleName;
+    }
+
+    if (QFile::exists(styleSheetPath)) {
+      m_styleWatcher.addPath(styleSheetPath);
+      updateStyle(styleSheetPath);
     } else {
+      // styleName might be a QStyleFactory key (e.g., "Fusion")
       updateStyle(styleName);
     }
   } else {
@@ -815,12 +825,46 @@ void MOApplication::updateStyle(const QString& fileName)
     setStyle(new ProxyStyle(QStyleFactory::create(fileName)));
   } else {
     QFile stylesheet(fileName);
-    if (stylesheet.exists()) {
-      setStyle(new ProxyStyle(QStyleFactory::create(
-          extractBaseStyleFromStyleSheet(stylesheet, m_defaultStyle))));
-      setStyleSheet(QString("file:///%1").arg(fileName));
-    } else {
+    if (!stylesheet.exists()) {
       log::warn("invalid stylesheet: {}", fileName);
+      return;
+    }
+
+    // extractBaseStyleFromStyleSheet opens/closes the file internally
+    setStyle(new ProxyStyle(QStyleFactory::create(
+        extractBaseStyleFromStyleSheet(stylesheet, m_defaultStyle))));
+
+    // Now open again to read content
+    if (stylesheet.open(QIODevice::ReadOnly | QIODevice::Text)) {
+      // Load stylesheet content directly instead of using file:// URL.
+      // Qt's CSS parser has issues with file:// URLs on Linux (strips leading /).
+      // Resolve relative paths (e.g., url(images/icon.png)) relative to stylesheet dir.
+      const QDir ssDir = QFileInfo(fileName).absoluteDir();
+      QString content = QString::fromUtf8(stylesheet.readAll());
+      stylesheet.close();
+
+      // Replace relative url() paths with absolute paths so Qt can find referenced images.
+      // Match: url("relative/path") or url(relative/path) but not url(:/resource) or url(http://...)
+      static const QRegularExpression urlRx(
+          R"(url\s*\(\s*["']?(?![\w]+:|:/)([^"')]+)["']?\s*\))",
+          QRegularExpression::CaseInsensitiveOption);
+
+      QString result;
+      qsizetype lastEnd = 0;
+      auto it = urlRx.globalMatch(content);
+      while (it.hasNext()) {
+        const auto match = it.next();
+        result.append(content.mid(lastEnd, match.capturedStart() - lastEnd));
+        const QString relPath = match.captured(1).trimmed();
+        const QString absPath = ssDir.absoluteFilePath(relPath);
+        result.append(QString("url(\"%1\")").arg(absPath));
+        lastEnd = match.capturedEnd();
+      }
+      result.append(content.mid(lastEnd));
+
+      setStyleSheet(result);
+    } else {
+      log::warn("failed to read stylesheet: {}", fileName);
     }
   }
 }
