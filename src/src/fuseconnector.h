@@ -67,6 +67,7 @@ private:
   std::string m_mountPoint;
   std::string m_stagingDir;
   std::string m_overwriteDir;
+  std::string m_customOutputDir;
   std::string m_gameDir;
   std::string m_dataDirName;
   std::string m_dataDirPath;

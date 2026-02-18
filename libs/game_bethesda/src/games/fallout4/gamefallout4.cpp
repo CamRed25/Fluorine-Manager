@@ -43,7 +43,7 @@ bool GameFallout4::init(IOrganizer* moInfo)
 
   registerFeature(std::make_shared<Fallout4ScriptExtender>(this));
   registerFeature(dataArchives);
-  registerFeature(std::make_shared<GamebryoLocalSavegames>(this, "fallout4custom.ini"));
+  registerFeature(std::make_shared<GamebryoLocalSavegames>(this, "Fallout4Custom.ini"));
   registerFeature(std::make_shared<Fallout4ModDataChecker>(this));
   registerFeature(
       std::make_shared<Fallout4ModDataContent>(m_Organizer->gameFeatures()));
@@ -139,15 +139,15 @@ void GameFallout4::initializeProfile(const QDir& path, ProfileSettings settings)
 
   if (settings.testFlag(IPluginGame::CONFIGURATION)) {
     if (settings.testFlag(IPluginGame::PREFER_DEFAULTS) ||
-        !QFileInfo(myGamesPath() + "/fallout4.ini").exists()) {
-      copyToProfile(gameDirectory().absolutePath(), path, "fallout4_default.ini",
-                    "fallout4.ini");
+        !QFileInfo(myGamesPath() + "/Fallout4.ini").exists()) {
+      copyToProfile(gameDirectory().absolutePath(), path, "Fallout4_default.ini",
+                    "Fallout4.ini");
     } else {
-      copyToProfile(myGamesPath(), path, "fallout4.ini");
+      copyToProfile(myGamesPath(), path, "Fallout4.ini");
     }
 
-    copyToProfile(myGamesPath(), path, "fallout4prefs.ini");
-    copyToProfile(myGamesPath(), path, "fallout4custom.ini");
+    copyToProfile(myGamesPath(), path, "Fallout4Prefs.ini");
+    copyToProfile(myGamesPath(), path, "Fallout4Custom.ini");
   }
 }
 
@@ -226,7 +226,7 @@ QString GameFallout4::gameNexusName() const
 
 QStringList GameFallout4::iniFiles() const
 {
-  return {"fallout4.ini", "fallout4prefs.ini", "fallout4custom.ini"};
+  return {"Fallout4.ini", "Fallout4Prefs.ini", "Fallout4Custom.ini"};
 }
 
 QStringList GameFallout4::DLCPlugins() const

@@ -309,6 +309,34 @@ bool GameGamebryo::prepareIni(const QString&)
   return true;
 }
 
+#ifndef _WIN32
+// Ensure both the canonical (proper-case) and lowercase versions of an INI file
+// exist in a directory. One will be the real file, the other a symlink.
+// This prevents case-sensitivity issues on Linux where different code paths or
+// the game itself may reference either casing.
+static void ensureCaseAliases(const QDir& dir, const QString& canonicalName,
+                              const QString& actualFileName)
+{
+  QString lowerName = canonicalName.toLower();
+
+  auto ensureAlias = [&](const QString& aliasName) {
+    if (aliasName != actualFileName) {
+      QString aliasPath = dir.absoluteFilePath(aliasName);
+      if (!QFileInfo::exists(aliasPath)) {
+        QFile::link(actualFileName, aliasPath);
+      }
+    }
+  };
+
+  // Ensure the canonical (proper-case) name exists
+  ensureAlias(canonicalName);
+  // Ensure the lowercase name exists
+  if (lowerName != canonicalName) {
+    ensureAlias(lowerName);
+  }
+}
+#endif
+
 void GameGamebryo::ensureIniFilesExist(const QString& basePath)
 {
   // Make sure the target directory exists
@@ -347,16 +375,25 @@ void GameGamebryo::ensureIniFilesExist(const QString& basePath)
     }
 
     // If a differently-cased version exists with adequate content,
-    // replace the stub (if any) with a symlink to the real file.
+    // replace the stub (if any) with a copy of the real file.
     if (!caseMismatchPath.isEmpty()) {
       QFileInfo altInfo(caseMismatchPath);
       if (altInfo.exists() && altInfo.size() > 200) {
         if (targetInfo.exists()) {
           QFile::remove(targetPath);
         }
-        QFile::link(altInfo.fileName(), targetPath);
-        MOBase::log::info("Created case-matching symlink '{}' -> '{}'",
-                          iniFile, altInfo.fileName());
+        if (QFile::copy(altInfo.absoluteFilePath(), targetPath)) {
+          QFile::setPermissions(
+              targetPath,
+              QFile::permissions(targetPath) | QFile::WriteUser | QFile::WriteOwner);
+          MOBase::log::info("Copied case-mismatched INI '{}' -> '{}'",
+                            altInfo.fileName(), iniFile);
+        } else {
+          MOBase::log::warn("Failed to copy case-mismatched INI '{}' -> '{}'",
+                            altInfo.fileName(), iniFile);
+        }
+        // Ensure both proper-case and lowercase aliases exist
+        ensureCaseAliases(baseDir, iniFile, targetInfo.fileName());
         continue;
       }
     }
@@ -364,8 +401,8 @@ void GameGamebryo::ensureIniFilesExist(const QString& basePath)
 
     // The INI doesn't exist or is a stub, and no adequate differently-cased
     // version was found. Try to seed from the game's default INI template
-    // (e.g., fallout_default.ini, oblivion_default.ini).
-    QString baseName = QFileInfo(iniFile).completeBaseName();  // "fallout"
+    // (e.g., Fallout_default.ini, Oblivion_default.ini).
+    QString baseName = QFileInfo(iniFile).completeBaseName();
     QString defaultIniName = baseName + "_default.ini";
     QString defaultIniPath =
         resolveFileCaseInsensitive(gameDirectory().absoluteFilePath(defaultIniName));
@@ -386,6 +423,16 @@ void GameGamebryo::ensureIniFilesExist(const QString& basePath)
                           defaultIniPath, targetPath);
       }
     }
+
+#ifndef _WIN32
+    // After creating/finding the INI, ensure both proper-case and lowercase
+    // versions exist so that any code path or the game itself can find it
+    // regardless of which casing it uses.
+    QFileInfo finalInfo(targetPath);
+    if (finalInfo.exists() || finalInfo.isSymLink()) {
+      ensureCaseAliases(baseDir, iniFile, finalInfo.fileName());
+    }
+#endif
   }
 }
 
@@ -468,6 +515,36 @@ QString GameGamebryo::localAppFolder()
   }
   return result;
 #else
+  // On Linux, AppData/Local lives inside the Wine prefix.
+  const QString configuredPrefix =
+      QSettings().value("fluorine/prefix_path").toString().trimmed();
+  if (!configuredPrefix.isEmpty()) {
+    const QString appDataLocal =
+        QDir(configuredPrefix).filePath("drive_c/users/steamuser/AppData/Local");
+    if (QDir(appDataLocal).exists() || QDir().mkpath(appDataLocal)) {
+      return appDataLocal;
+    }
+  }
+
+  // Fallback: search Steam Proton prefixes
+  const QString steamRoot =
+      QDir::homePath() + "/.steam/steam/steamapps/compatdata";
+  QDir compatDir(steamRoot);
+  if (compatDir.exists()) {
+    for (const QString& appId :
+         compatDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+      const QString appDataLocal = steamRoot + "/" + appId +
+                                   "/pfx/drive_c/users/steamuser/AppData/Local";
+      if (QDir(appDataLocal).exists()) {
+        return appDataLocal;
+      }
+    }
+  }
+
+  // Last resort: GenericDataLocation (won't work for Wine games but
+  // prevents crashes)
+  MOBase::log::warn("localAppFolder: could not find Wine prefix "
+                    "AppData/Local, falling back to XDG data location");
   return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
 #endif
 }
@@ -502,6 +579,32 @@ void GameGamebryo::copyToProfile(QString const& sourcePath,
       }
     }
   }
+
+#ifndef _WIN32
+  // Ensure both proper-case and lowercase versions exist (one as symlink)
+  QFileInfo actualFile(filePath);
+  if (actualFile.exists() || actualFile.isSymLink()) {
+    ensureCaseAliases(destinationDirectory, destinationFileName,
+                      actualFile.fileName());
+  }
+#endif
+}
+
+QString GameGamebryo::localAppName() const
+{
+  // Default: derive from the My Games path.  If myGamesPath() is
+  // e.g. ".../Documents/My Games/Skyrim Special Edition", we return
+  // "Skyrim Special Edition".  This matches the AppData/Local subfolder
+  // for the vast majority of Bethesda games.
+  const QString mgp = myGamesPath();
+  if (!mgp.isEmpty()) {
+    const QString leaf = QDir(mgp).dirName();
+    if (!leaf.isEmpty() && leaf != QStringLiteral(".")) {
+      return leaf;
+    }
+  }
+  // Fallback: gameShortName is used by the base mappings()
+  return gameShortName();
 }
 
 MappingType GameGamebryo::mappings() const
@@ -510,7 +613,7 @@ MappingType GameGamebryo::mappings() const
 
   for (const QString& profileFile : {"plugins.txt", "loadorder.txt"}) {
     result.push_back({m_Organizer->profilePath() + "/" + profileFile,
-                      localAppFolder() + "/" + gameShortName() + "/" + profileFile,
+                      localAppFolder() + "/" + localAppName() + "/" + profileFile,
                       false});
   }
 

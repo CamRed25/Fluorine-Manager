@@ -68,6 +68,10 @@ public:
   //
   void openINI();
 
+  // removes the selected instance from the list without deleting files
+  //
+  void removeFromList();
+
   // deletes the selected instance
   //
   void deleteInstance();

@@ -2,7 +2,7 @@
 
 FalloutTTWBSAInvalidation::FalloutTTWBSAInvalidation(MOBase::DataArchives* dataArchives,
                                                      MOBase::IPluginGame const* game)
-    : GamebryoBSAInvalidation(dataArchives, "fallout.ini", game)
+    : GamebryoBSAInvalidation(dataArchives, "Fallout.ini", game)
 {}
 
 QString FalloutTTWBSAInvalidation::invalidationBSAName() const

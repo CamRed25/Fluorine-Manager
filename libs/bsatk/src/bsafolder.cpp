@@ -139,6 +139,19 @@ std::string Folder::getFullPath() const
 void Folder::addFolderInt(Folder::Ptr folder)
 {
   std::filesystem::path path(folder->m_Name);
+  if (path.empty()) {
+    folder->m_Parent = this;
+    if (m_SubFoldersByName.contains("")) {
+      m_SubFoldersByName.at("")->m_Files.insert(m_SubFoldersByName.at("")->m_Files.end(),
+                                                folder->m_Files.begin(),
+                                                folder->m_Files.end());
+      return;
+    }
+    m_SubFolders.push_back(folder);
+    m_SubFoldersByName[""] = folder;
+    return;
+  }
+
   auto it              = path.begin();
   std::string firstStr = it->string();
   std::filesystem::path remaining;
@@ -174,6 +187,16 @@ void Folder::addFolderInt(Folder::Ptr folder)
 Folder::Ptr Folder::addOrFindFolderInt(Folder* folder)
 {
   std::filesystem::path path(folder->m_Name);
+  if (path.empty()) {
+    if (m_SubFoldersByName.contains("")) {
+      return m_SubFoldersByName.at("");
+    }
+    folder->m_Parent = this;
+    m_SubFolders.push_back(Folder::Ptr(folder));
+    m_SubFoldersByName[""] = m_SubFolders.back();
+    return m_SubFolders.back();
+  }
+
   auto it              = path.begin();
   std::string firstStr = it->string();
   std::filesystem::path remaining;

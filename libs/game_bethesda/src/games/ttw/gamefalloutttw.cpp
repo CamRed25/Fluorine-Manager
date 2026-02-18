@@ -41,7 +41,7 @@ bool GameFalloutTTW::init(IOrganizer* moInfo)
   registerFeature(
       std::make_shared<FalloutTTWBSAInvalidation>(dataArchives.get(), this));
   registerFeature(std::make_shared<GamebryoSaveGameInfo>(this));
-  registerFeature(std::make_shared<GamebryoLocalSavegames>(this, "fallout.ini"));
+  registerFeature(std::make_shared<GamebryoLocalSavegames>(this, "Fallout.ini"));
   registerFeature(std::make_shared<FalloutTTWModDataChecker>(this));
   registerFeature(
       std::make_shared<FalloutTTWModDataContent>(m_Organizer->gameFeatures()));
@@ -222,15 +222,15 @@ void GameFalloutTTW::initializeProfile(const QDir& path, ProfileSettings setting
 
   if (settings.testFlag(IPluginGame::CONFIGURATION)) {
     if (settings.testFlag(IPluginGame::PREFER_DEFAULTS) ||
-        !QFileInfo(myGamesPath() + "/fallout.ini").exists()) {
-      copyToProfile(gameDirectory().absolutePath(), path, "fallout_default.ini",
-                    "fallout.ini");
+        !QFileInfo(myGamesPath() + "/Fallout.ini").exists()) {
+      copyToProfile(gameDirectory().absolutePath(), path, "Fallout_default.ini",
+                    "Fallout.ini");
     } else {
-      copyToProfile(myGamesPath(), path, "fallout.ini");
+      copyToProfile(myGamesPath(), path, "Fallout.ini");
     }
 
-    copyToProfile(myGamesPath(), path, "falloutprefs.ini");
-    copyToProfile(myGamesPath(), path, "falloutcustom.ini");
+    copyToProfile(myGamesPath(), path, "FalloutPrefs.ini");
+    copyToProfile(myGamesPath(), path, "FalloutCustom.ini");
     copyToProfile(myGamesPath(), path, "GECKCustom.ini");
     copyToProfile(myGamesPath(), path, "GECKPrefs.ini");
   }
@@ -306,7 +306,7 @@ QString GameFalloutTTW::gameNexusName() const
 
 QStringList GameFalloutTTW::iniFiles() const
 {
-  return {"fallout.ini", "falloutprefs.ini", "falloutcustom.ini", "GECKCustom.ini",
+  return {"Fallout.ini", "FalloutPrefs.ini", "FalloutCustom.ini", "GECKCustom.ini",
           "GECKPrefs.ini"};
 }
 

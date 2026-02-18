@@ -31,6 +31,7 @@ along with Mod Organizer.  If not, see <http://www.gnu.org/licenses/>.
 #include "settings.h"
 #ifndef _WIN32
 #include "fluorineconfig.h"
+#include "fluorinepaths.h"
 #include "fuseconnector.h"
 #include "wineprefix.h"
 #include <cerrno>
@@ -41,12 +42,9 @@ along with Mod Organizer.  If not, see <http://www.gnu.org/licenses/>.
 #include "thread_utils.h"
 #include "tutorialmanager.h"
 #include <QDebug>
-#include <QDir>
 #include <QFile>
-#include <QFileInfo>
 #include <QPainter>
 #include <QProxyStyle>
-#include <QRegularExpression>
 #include <QSslSocket>
 #include <QStringList>
 #include <QStyleFactory>
@@ -678,20 +676,43 @@ bool MOApplication::setStyleFile(const QString& styleName)
   }
   // set new stylesheet or clear it
   if (styleName.length() != 0) {
-    const QString ssRelPath = MOBase::ToQString(AppConfig::stylesheetsPath());
+    // Search for the stylesheet in multiple locations:
+    //   1. applicationDirPath()/stylesheets/ — bundled themes
+    //   2. instance baseDir/stylesheets/     — instance/portable themes (modlists)
+    //   3. fluorineDataDir()/stylesheets/    — user-installed custom themes
+    const QString ssSubdir = MOBase::ToQString(AppConfig::stylesheetsPath());
+    QStringList searchDirs;
+    searchDirs << applicationDirPath() + "/" + ssSubdir;
+#ifndef _WIN32
+    if (m_instance) {
+      // Prefer baseDirectory() (populated after readFromIni), fall back to
+      // directory() which is always set by the constructor.
+      QString base = m_instance->baseDirectory();
+      if (base.isEmpty())
+        base = m_instance->directory();
+      const QString instanceDir = base + "/" + ssSubdir;
+      if (!searchDirs.contains(instanceDir))
+        searchDirs << instanceDir;
+    }
+    const QString userDir = fluorineDataDir() + "/stylesheets";
+    if (!searchDirs.contains(userDir))
+      searchDirs << userDir;
+#endif
 
-    // Check user stylesheets directory first (allows custom overrides)
-    QString styleSheetPath = AppConfig::basePath() + "/" + ssRelPath + "/" + styleName;
-    if (!QFile::exists(styleSheetPath)) {
-      // Fall back to bundled stylesheets
-      styleSheetPath = applicationDirPath() + "/" + ssRelPath + "/" + styleName;
+    QString resolved;
+    for (const auto& dir : searchDirs) {
+      QString candidate = dir + "/" + styleName;
+      if (QFile::exists(candidate)) {
+        resolved = candidate;
+        break;
+      }
     }
 
-    if (QFile::exists(styleSheetPath)) {
-      m_styleWatcher.addPath(styleSheetPath);
-      updateStyle(styleSheetPath);
+    if (!resolved.isEmpty()) {
+      m_styleWatcher.addPath(resolved);
+      updateStyle(resolved);
     } else {
-      // styleName might be a QStyleFactory key (e.g., "Fusion")
+      // Could be a built-in Qt style name (e.g. "Fusion")
       updateStyle(styleName);
     }
   } else {
@@ -825,46 +846,12 @@ void MOApplication::updateStyle(const QString& fileName)
     setStyle(new ProxyStyle(QStyleFactory::create(fileName)));
   } else {
     QFile stylesheet(fileName);
-    if (!stylesheet.exists()) {
-      log::warn("invalid stylesheet: {}", fileName);
-      return;
-    }
-
-    // extractBaseStyleFromStyleSheet opens/closes the file internally
-    setStyle(new ProxyStyle(QStyleFactory::create(
-        extractBaseStyleFromStyleSheet(stylesheet, m_defaultStyle))));
-
-    // Now open again to read content
-    if (stylesheet.open(QIODevice::ReadOnly | QIODevice::Text)) {
-      // Load stylesheet content directly instead of using file:// URL.
-      // Qt's CSS parser has issues with file:// URLs on Linux (strips leading /).
-      // Resolve relative paths (e.g., url(images/icon.png)) relative to stylesheet dir.
-      const QDir ssDir = QFileInfo(fileName).absoluteDir();
-      QString content = QString::fromUtf8(stylesheet.readAll());
-      stylesheet.close();
-
-      // Replace relative url() paths with absolute paths so Qt can find referenced images.
-      // Match: url("relative/path") or url(relative/path) but not url(:/resource) or url(http://...)
-      static const QRegularExpression urlRx(
-          R"(url\s*\(\s*["']?(?![\w]+:|:/)([^"')]+)["']?\s*\))",
-          QRegularExpression::CaseInsensitiveOption);
-
-      QString result;
-      qsizetype lastEnd = 0;
-      auto it = urlRx.globalMatch(content);
-      while (it.hasNext()) {
-        const auto match = it.next();
-        result.append(content.mid(lastEnd, match.capturedStart() - lastEnd));
-        const QString relPath = match.captured(1).trimmed();
-        const QString absPath = ssDir.absoluteFilePath(relPath);
-        result.append(QString("url(\"%1\")").arg(absPath));
-        lastEnd = match.capturedEnd();
-      }
-      result.append(content.mid(lastEnd));
-
-      setStyleSheet(result);
+    if (stylesheet.exists()) {
+      setStyle(new ProxyStyle(QStyleFactory::create(
+          extractBaseStyleFromStyleSheet(stylesheet, m_defaultStyle))));
+      setStyleSheet(QString("file:///%1").arg(fileName));
     } else {
-      log::warn("failed to read stylesheet: {}", fileName);
+      log::warn("invalid stylesheet: {}", fileName);
     }
   }
 }

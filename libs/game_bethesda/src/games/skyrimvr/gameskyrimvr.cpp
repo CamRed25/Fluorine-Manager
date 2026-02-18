@@ -152,13 +152,13 @@ void GameSkyrimVR::initializeProfile(const QDir& path, ProfileSettings settings)
 
   if (settings.testFlag(IPluginGame::CONFIGURATION)) {
     if (settings.testFlag(IPluginGame::PREFER_DEFAULTS) ||
-        !QFileInfo(myGamesPath() + "/skyrimvr.ini").exists()) {
-      copyToProfile(gameDirectory().absolutePath(), path, "skyrim.ini", "skyrimvr.ini");
+        !QFileInfo(myGamesPath() + "/SkyrimVR.ini").exists()) {
+      copyToProfile(gameDirectory().absolutePath(), path, "Skyrim.ini", "SkyrimVR.ini");
     } else {
-      copyToProfile(myGamesPath(), path, "skyrimvr.ini");
+      copyToProfile(myGamesPath(), path, "SkyrimVR.ini");
     }
 
-    copyToProfile(myGamesPath(), path, "skyrimprefs.ini");
+    copyToProfile(myGamesPath(), path, "SkyrimPrefs.ini");
   }
 }
 
@@ -224,7 +224,7 @@ QString GameSkyrimVR::gameNexusName() const
 
 QStringList GameSkyrimVR::iniFiles() const
 {
-  return {"skyrimvr.ini", "skyrimprefs.ini"};
+  return {"SkyrimVR.ini", "SkyrimPrefs.ini"};
 }
 
 QStringList GameSkyrimVR::DLCPlugins() const

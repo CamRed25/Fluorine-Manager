@@ -34,6 +34,10 @@ fs::path::iterator nextIter(const fs::path::iterator& iter,
 
 void advanceIter(fs::path::iterator& iter, const fs::path::iterator& end)
 {
+  if (iter == end) {
+    return;
+  }
+
   ++iter;
   while (iter != end && (iter->wstring() == L"/" || iter->wstring() == L"\\" ||
                          iter->wstring() == L"."))

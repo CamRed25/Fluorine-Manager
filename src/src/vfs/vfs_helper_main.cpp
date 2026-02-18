@@ -31,6 +31,7 @@ struct HelperConfig
   std::string game_dir;
   std::string data_dir_name;
   std::string overwrite_dir;
+  std::string output_dir;
   std::vector<std::pair<std::string, std::string>> mods;
   std::vector<std::pair<std::string, std::string>> extra_files;
 };
@@ -62,6 +63,8 @@ static HelperConfig readConfig(const std::string& path)
       cfg.data_dir_name = val;
     } else if (key == "overwrite_dir") {
       cfg.overwrite_dir = val;
+    } else if (key == "output_dir") {
+      cfg.output_dir = val;
     } else if (key == "mod") {
       const auto pipe = val.find('|');
       if (pipe != std::string::npos) {
@@ -97,10 +100,13 @@ static void tryUnmountStale(const std::string& path)
 }
 
 static void flushStaging(const std::string& stagingDir,
-                         const std::string& overwriteDir)
+                         const std::string& overwriteDir,
+                         const std::string& outputDir = {})
 {
   const fs::path staging(stagingDir);
-  const fs::path overwrite(overwriteDir);
+  const fs::path overwrite = outputDir.empty()
+                                 ? fs::path(overwriteDir)
+                                 : fs::path(outputDir);
   if (!fs::exists(staging)) {
     return;
   }
@@ -193,6 +199,9 @@ int main(int argc, char* argv[])
   std::error_code ec;
   fs::create_directories(stagingDir, ec);
   fs::create_directories(config.overwrite_dir, ec);
+  if (!config.output_dir.empty()) {
+    fs::create_directories(config.output_dir, ec);
+  }
 
   // Scan base game files BEFORE mounting (after mount they're hidden)
   auto baseFileCache = scanDataDir(dataDirPath);
@@ -289,7 +298,7 @@ int main(int argc, char* argv[])
       config = newConfig;
       std::cout << "ok" << std::endl;
     } else if (line == "flush") {
-      flushStaging(stagingDir, config.overwrite_dir);
+      flushStaging(stagingDir, config.overwrite_dir, config.output_dir);
       fs::create_directories(stagingDir, ec);
 
       auto newTree = std::make_shared<VfsTree>(buildDataDirVfs(
@@ -320,7 +329,7 @@ int main(int argc, char* argv[])
   fuse_session_destroy(session);
   g_session = nullptr;
 
-  flushStaging(stagingDir, config.overwrite_dir);
+  flushStaging(stagingDir, config.overwrite_dir, config.output_dir);
   close(backingFd);
 
   std::cout << "ok" << std::endl;

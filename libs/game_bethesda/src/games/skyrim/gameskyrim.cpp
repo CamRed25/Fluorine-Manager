@@ -48,7 +48,7 @@ bool GameSkyrim::init(IOrganizer* moInfo)
   registerFeature(dataArchives);
   registerFeature(std::make_shared<SkyrimBSAInvalidation>(dataArchives.get(), this));
   registerFeature(std::make_shared<GamebryoSaveGameInfo>(this));
-  registerFeature(std::make_shared<GamebryoLocalSavegames>(this, "skyrim.ini"));
+  registerFeature(std::make_shared<GamebryoLocalSavegames>(this, "Skyrim.ini"));
   registerFeature(std::make_shared<SkyrimModDataChecker>(this));
   registerFeature(std::make_shared<SkyrimModDataContent>(m_Organizer->gameFeatures()));
   registerFeature(std::make_shared<SkyrimGamePlugins>(moInfo));
@@ -125,14 +125,14 @@ void GameSkyrim::initializeProfile(const QDir& path, ProfileSettings settings) c
 
   if (settings.testFlag(IPluginGame::CONFIGURATION)) {
     if (settings.testFlag(IPluginGame::PREFER_DEFAULTS) ||
-        !QFileInfo(myGamesPath() + "/skyrim.ini").exists()) {
-      copyToProfile(gameDirectory().absolutePath(), path, "skyrim_default.ini",
-                    "skyrim.ini");
+        !QFileInfo(myGamesPath() + "/Skyrim.ini").exists()) {
+      copyToProfile(gameDirectory().absolutePath(), path, "Skyrim_default.ini",
+                    "Skyrim.ini");
     } else {
-      copyToProfile(myGamesPath(), path, "skyrim.ini");
+      copyToProfile(myGamesPath(), path, "Skyrim.ini");
     }
 
-    copyToProfile(myGamesPath(), path, "skyrimprefs.ini");
+    copyToProfile(myGamesPath(), path, "SkyrimPrefs.ini");
   }
 }
 
@@ -187,7 +187,7 @@ QStringList GameSkyrim::validShortNames() const
 
 QStringList GameSkyrim::iniFiles() const
 {
-  return {"skyrim.ini", "skyrimprefs.ini"};
+  return {"Skyrim.ini", "SkyrimPrefs.ini"};
 }
 
 QStringList GameSkyrim::DLCPlugins() const

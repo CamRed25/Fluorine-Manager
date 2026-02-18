@@ -45,6 +45,7 @@ private:
 
   void enqueueStatus(const QString& message);
   void enqueueProgress(float progress);
+  void appendInstallLog(const QString& message);
 
   static void statusCallback(const char* message);
   static void logCallback(const char* message);

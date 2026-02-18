@@ -52,6 +52,10 @@ list(REMOVE_ITEM ORGANIZER_HEADERS
 list(REMOVE_ITEM ORGANIZER_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/vfs/vfs_helper_main.cpp)
 
+# Process helper has its own main() — exclude from organizer
+list(REMOVE_ITEM ORGANIZER_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/process_helper_main.cpp)
+
 # Remove WebEngine-dependent sources when not available
 if(NOT Qt6WebEngineWidgets_FOUND)
     list(REMOVE_ITEM ORGANIZER_SOURCES
@@ -152,6 +156,13 @@ if(NOT WIN32)
     target_include_directories(mo2-vfs-helper PRIVATE ${FUSE3_INCLUDE_DIRS})
     target_compile_definitions(mo2-vfs-helper PRIVATE FUSE_USE_VERSION=35)
     target_compile_features(mo2-vfs-helper PRIVATE cxx_std_23)
+
+    # ── Standalone process helper for Flatpak game launching ──
+    # Keeps the flatpak-spawn proxy alive while monitoring the game process tree.
+    add_executable(mo2-process-helper
+        process_helper_main.cpp)
+    target_link_libraries(mo2-process-helper PRIVATE Threads::Threads)
+    target_compile_features(mo2-process-helper PRIVATE cxx_std_23)
 
     option(MO2_BUNDLE_7Z_RUNTIME "Copy a Linux 7z module into organizer/dlls" ON)
     option(MO2_STAGE_PYTHON_PLUGIN_PAYLOAD

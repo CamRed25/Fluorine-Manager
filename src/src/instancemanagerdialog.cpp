@@ -8,7 +8,9 @@
 #include "shared/appconfig.h"
 #include "shared/util.h"
 #include "ui_instancemanagerdialog.h"
+#include <QFile>
 #include <QFileDialog>
+#include <QSettings>
 #include <QStandardPaths>
 #include <iplugingame.h>
 #include <report.h>
@@ -204,6 +206,9 @@ InstanceManagerDialog::InstanceManagerDialog(PluginContainer& pc, QWidget* paren
   });
   connect(ui->openINI, &QPushButton::clicked, [&] {
     openINI();
+  });
+  connect(ui->removeFromList, &QPushButton::clicked, [&] {
+    removeFromList();
   });
   connect(ui->deleteInstance, &QPushButton::clicked, [&] {
     deleteInstance();
@@ -522,6 +527,45 @@ void InstanceManagerDialog::openINI()
   }
 }
 
+void InstanceManagerDialog::removeFromList()
+{
+  const auto* i = singleSelection();
+  if (!i) {
+    return;
+  }
+
+  auto& m = InstanceManager::singleton();
+  if (i->isActive()) {
+    QMessageBox::information(this, tr("Remove from list"),
+                             tr("The active instance cannot be removed."));
+    return;
+  }
+
+  const auto r = QMessageBox::question(
+      this, tr("Remove from list"),
+      tr("Remove \"%1\" from the instance list?\n\n"
+         "No files will be deleted.")
+          .arg(i->displayName()),
+      QMessageBox::Yes | QMessageBox::Cancel);
+
+  if (r != QMessageBox::Yes) {
+    return;
+  }
+
+  if (i->isPortable()) {
+    m.unregisterPortableInstance(i->directory());
+  } else {
+    // for global instances, rename the INI so it's no longer auto-discovered
+    const QString ini = i->iniPath();
+    if (!ini.isEmpty() && QFile::exists(ini)) {
+      QFile::rename(ini, ini + ".disabled");
+    }
+  }
+
+  updateInstances();
+  updateList();
+}
+
 void InstanceManagerDialog::deleteInstance()
 {
   const auto* i = singleSelection();
@@ -538,7 +582,6 @@ void InstanceManagerDialog::deleteInstance()
 
   // creating dialog
 
-  const auto Recycle = QMessageBox::Save;
   const auto Delete  = QMessageBox::Yes;
   const auto Cancel  = QMessageBox::Cancel;
 
@@ -547,10 +590,9 @@ void InstanceManagerDialog::deleteInstance()
   MOBase::TaskDialog dlg(this);
 
   dlg.title(tr("Deleting instance"))
-      .main(tr("These files and folders will be deleted"))
+      .main(tr("These files and folders will be permanently deleted"))
       .content(tr("All checked items will be deleted."))
       .icon(QMessageBox::Warning)
-      .button({tr("Move to the recycle bin"), Recycle})
       .button({tr("Delete permanently"), Delete})
       .button({tr("Cancel"), Cancel});
 
@@ -584,7 +626,7 @@ void InstanceManagerDialog::deleteInstance()
 
   const auto r = dlg.exec();
 
-  if (r != Recycle && r != Delete) {
+  if (r != Delete) {
     return;
   }
 
@@ -604,7 +646,7 @@ void InstanceManagerDialog::deleteInstance()
   }
 
   // deleting
-  if (!doDelete(selected, (r == Recycle))) {
+  if (!doDelete(selected, false)) {
     return;
   }
 
@@ -729,6 +771,20 @@ void InstanceManagerDialog::fillData(const Instance& ii)
   ui->baseDirectory->setText(ii.baseDirectory());
   ui->gameName->setText(ii.gameName());
   ui->gameDir->setText(ii.gameDirectory());
+
+  // read prefix info from the instance's INI
+  {
+    const QString ini = ii.iniPath();
+    if (!ini.isEmpty() && QFile::exists(ini)) {
+      QSettings s(ini, QSettings::IniFormat);
+      ui->prefixPath->setText(s.value("Settings/proton_prefix_path").toString());
+      ui->protonVersion->setText(s.value("fluorine/proton_name").toString());
+    } else {
+      ui->prefixPath->clear();
+      ui->protonVersion->clear();
+    }
+  }
+
   setButtonsEnabled(true);
 
   const auto& m = InstanceManager::singleton();
@@ -764,6 +820,8 @@ void InstanceManagerDialog::clearData()
   ui->baseDirectory->clear();
   ui->gameName->clear();
   ui->gameDir->clear();
+  ui->prefixPath->clear();
+  ui->protonVersion->clear();
 
   setButtonsEnabled(false);
 
@@ -779,6 +837,7 @@ void InstanceManagerDialog::setButtonsEnabled(bool b)
   ui->exploreGame->setEnabled(b);
   ui->convertToPortable->setEnabled(b);
   ui->convertToGlobal->setEnabled(b);
+  ui->removeFromList->setEnabled(b);
   ui->deleteInstance->setEnabled(b);
   ui->switchToInstance->setEnabled(b);
 }

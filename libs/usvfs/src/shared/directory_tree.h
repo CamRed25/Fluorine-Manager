@@ -327,6 +327,9 @@ public:
   NodePtrT findNode(const fs::path& path)
   {
     fs::path::iterator iter = path.begin();
+    if (iter == path.end()) {
+      return NodePtrT();
+    }
     return findNode(path, iter);
   }
 
@@ -338,6 +341,9 @@ public:
   const NodePtrT findNode(const fs::path& path) const
   {
     fs::path::iterator iter = path.begin();
+    if (iter == path.end()) {
+      return NodePtrT();
+    }
     return findNode(path, iter);
   }
 
@@ -350,6 +356,9 @@ public:
   void visitPath(const fs::path& path, const VisitorFunction& visitor) const
   {
     fs::path::iterator iter = path.begin();
+    if (iter == path.end()) {
+      return;
+    }
     visitPath(path, iter, visitor);
   }
 
@@ -526,6 +535,10 @@ public:
 
   NodePtrT findNode(const fs::path& name, fs::path::iterator& iter)
   {
+    if (iter == name.end()) {
+      return NodePtrT();
+    }
+
     std::string l = iter->string();
     auto subNode  = m_Nodes.find(iter->string());
     advanceIter(iter, name.end());
@@ -548,6 +561,10 @@ public:
 
   const NodePtrT findNode(const fs::path& name, fs::path::iterator& iter) const
   {
+    if (iter == name.end()) {
+      return NodePtrT();
+    }
+
     auto subNode = m_Nodes.find(iter->string());
     advanceIter(iter, name.end());
 
@@ -570,6 +587,10 @@ public:
   void visitPath(const fs::path& path, fs::path::iterator& iter,
                  const VisitorFunction& visitor) const
   {
+    if (iter == path.end()) {
+      return;
+    }
+
     auto subNode = m_Nodes.find(iter->string());
 
     if (subNode != m_Nodes.end()) {

@@ -151,15 +151,15 @@ void GameFallout4London::initializeProfile(const QDir& path,
 
   if (settings.testFlag(IPluginGame::CONFIGURATION)) {
     if (settings.testFlag(IPluginGame::PREFER_DEFAULTS) ||
-        !QFileInfo(myGamesPath() + "/fallout4.ini").exists()) {
-      copyToProfile(gameDirectory().absolutePath(), path, "fallout4_default.ini",
-                    "fallout4.ini");
+        !QFileInfo(myGamesPath() + "/Fallout4.ini").exists()) {
+      copyToProfile(gameDirectory().absolutePath(), path, "Fallout4_default.ini",
+                    "Fallout4.ini");
     } else {
-      copyToProfile(myGamesPath(), path, "fallout4.ini");
+      copyToProfile(myGamesPath(), path, "Fallout4.ini");
     }
 
-    copyToProfile(myGamesPath(), path, "fallout4prefs.ini");
-    copyToProfile(myGamesPath(), path, "fallout4custom.ini");
+    copyToProfile(myGamesPath(), path, "Fallout4Prefs.ini");
+    copyToProfile(myGamesPath(), path, "Fallout4Custom.ini");
   }
 }
 
@@ -258,7 +258,7 @@ QString GameFallout4London::getLauncherName() const
 
 QStringList GameFallout4London::iniFiles() const
 {
-  return {"fallout4.ini", "fallout4prefs.ini", "fallout4custom.ini"};
+  return {"Fallout4.ini", "Fallout4Prefs.ini", "Fallout4Custom.ini"};
 }
 
 QStringList GameFallout4London::DLCPlugins() const

@@ -2,7 +2,7 @@
 
 SkyrimBSAInvalidation::SkyrimBSAInvalidation(MOBase::DataArchives* dataArchives,
                                              MOBase::IPluginGame const* game)
-    : GamebryoBSAInvalidation(dataArchives, "skyrim.ini", game)
+    : GamebryoBSAInvalidation(dataArchives, "Skyrim.ini", game)
 {}
 
 QString SkyrimBSAInvalidation::invalidationBSAName() const

@@ -112,14 +112,14 @@ void GameNehrim::initializeProfile(const QDir& path, ProfileSettings settings) c
 
   if (settings.testFlag(IPluginGame::CONFIGURATION)) {
     if (settings.testFlag(IPluginGame::PREFER_DEFAULTS) ||
-        !QFileInfo(myGamesPath() + "/oblivion.ini").exists()) {
-      copyToProfile(gameDirectory().absolutePath(), path, "oblivion_default.ini",
-                    "oblivion.ini");
+        !QFileInfo(myGamesPath() + "/Oblivion.ini").exists()) {
+      copyToProfile(gameDirectory().absolutePath(), path, "Oblivion_default.ini",
+                    "Oblivion.ini");
     } else {
-      copyToProfile(myGamesPath(), path, "oblivion.ini");
+      copyToProfile(myGamesPath(), path, "Oblivion.ini");
     }
 
-    copyToProfile(myGamesPath(), path, "oblivionprefs.ini");
+    copyToProfile(myGamesPath(), path, "OblivionPrefs.ini");
   }
 }
 
@@ -153,6 +153,12 @@ QString GameNehrim::gameShortName() const
   return "Nehrim";
 }
 
+QString GameNehrim::localAppName() const
+{
+  // Nehrim shares Oblivion's AppData/Local folder
+  return "Oblivion";
+}
+
 QString GameNehrim::gameNexusName() const
 {
   return "Nehrim";
@@ -160,7 +166,7 @@ QString GameNehrim::gameNexusName() const
 
 QStringList GameNehrim::iniFiles() const
 {
-  return {"oblivion.ini", "oblivionprefs.ini"};
+  return {"Oblivion.ini", "OblivionPrefs.ini"};
 }
 
 QStringList GameNehrim::DLCPlugins() const

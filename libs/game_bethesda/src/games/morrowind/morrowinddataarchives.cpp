@@ -53,8 +53,8 @@ QStringList MorrowindDataArchives::archives(const MOBase::IProfile* profile) con
 
   QString iniFile =
       profile->localSettingsEnabled()
-          ? QDir(profile->absolutePath()).absoluteFilePath("morrowind.ini")
-          : gameDirectory().absoluteFilePath("morrowind.ini");
+          ? QDir(profile->absolutePath()).absoluteFilePath("Morrowind.ini")
+          : gameDirectory().absoluteFilePath("Morrowind.ini");
   result.append(getArchives(iniFile));
 
   return result;
@@ -65,7 +65,7 @@ void MorrowindDataArchives::writeArchiveList(MOBase::IProfile* profile,
 {
   QString iniFile =
       profile->localSettingsEnabled()
-          ? QDir(profile->absolutePath()).absoluteFilePath("morrowind.ini")
-          : gameDirectory().absoluteFilePath("morrowind.ini");
+          ? QDir(profile->absolutePath()).absoluteFilePath("Morrowind.ini")
+          : gameDirectory().absoluteFilePath("Morrowind.ini");
   setArchives(iniFile, before);
 }

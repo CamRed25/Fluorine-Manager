@@ -1,14 +1,15 @@
 #include "settingsdialogtheme.h"
 #include "categoriesdialog.h"
 #include "colortable.h"
+#include "instancemanager.h"
 #include "modlist.h"
 #include "shared/appconfig.h"
 #include "ui_settingsdialog.h"
 #include <questionboxmemory.h>
 #include <utility.h>
-
-#include <QDir>
-#include <QSet>
+#ifndef _WIN32
+#include "fluorinepaths.h"
+#endif
 
 using namespace MOBase;
 
@@ -55,36 +56,34 @@ void ThemeSettingsTab::addStyles()
 
   ui->styleBox->insertSeparator(ui->styleBox->count());
 
-  // Collect stylesheet names from both bundled and user directories.
-  // User styles override bundled styles with the same name.
-  QSet<QString> seenFiles;
-  const QString ssRelPath = ToQString(AppConfig::stylesheetsPath());
-
-  // User stylesheets first (basePath is ~/.local/share/fluorine/ when MO2_BASE_DIR set)
-  // Mark them with "(custom)" and record their names so bundled duplicates are skipped.
-  const QString userPath = AppConfig::basePath() + "/" + ssRelPath;
-  const QString bundledPath = QCoreApplication::applicationDirPath() + "/" + ssRelPath;
-  if (userPath != bundledPath && QDir(userPath).exists()) {
-    QDirIterator userIter(userPath, QStringList("*.qss"), QDir::Files,
-                          QDirIterator::FollowSymlinks);
-    while (userIter.hasNext()) {
-      userIter.next();
-      const QString fileName = userIter.fileName();
-      seenFiles.insert(fileName.toLower());
-      ui->styleBox->addItem(userIter.fileInfo().completeBaseName() + " (custom)", fileName);
-    }
+  // Collect .qss files from all stylesheet search directories, deduplicating
+  // by filename so bundled themes aren't listed twice.
+  const QString ssSubdir = QString::fromStdWString(AppConfig::stylesheetsPath());
+  QStringList searchDirs;
+  searchDirs << QCoreApplication::applicationDirPath() + "/" + ssSubdir;
+#ifndef _WIN32
+  if (auto ci = InstanceManager::singleton().currentInstance()) {
+    // currentInstance() returns a bare Instance (readFromIni() not called),
+    // so baseDirectory() is empty. Use directory() which is always set.
+    const QString instanceDir = ci->directory() + "/" + ssSubdir;
+    if (!searchDirs.contains(instanceDir))
+      searchDirs << instanceDir;
   }
+  const QString userDir = fluorineDataDir() + "/stylesheets";
+  if (!searchDirs.contains(userDir))
+    searchDirs << userDir;
+#endif
 
-  // Bundled stylesheets (applicationDirPath is /app/lib/fluorine in Flatpak)
-  // Skip any that were overridden by user styles.
-  QDirIterator bundledIter(bundledPath, QStringList("*.qss"), QDir::Files,
-                           QDirIterator::FollowSymlinks);
-  while (bundledIter.hasNext()) {
-    bundledIter.next();
-    const QString fileName = bundledIter.fileName();
-    if (!seenFiles.contains(fileName.toLower())) {
-      seenFiles.insert(fileName.toLower());
-      ui->styleBox->addItem(bundledIter.fileInfo().completeBaseName(), fileName);
+  QSet<QString> seen;
+  for (const auto& dir : searchDirs) {
+    QDirIterator iter(dir, QStringList("*.qss"), QDir::Files);
+    while (iter.hasNext()) {
+      iter.next();
+      const QString fileName = iter.fileName();
+      if (seen.contains(fileName))
+        continue;
+      seen.insert(fileName);
+      ui->styleBox->addItem(iter.fileInfo().completeBaseName(), fileName);
     }
   }
 }
@@ -101,10 +100,21 @@ void ThemeSettingsTab::selectStyle()
 
 void ThemeSettingsTab::onExploreStyles()
 {
-  // Open the user stylesheets directory where custom styles can be added.
-  // Create it if it doesn't exist.
-  QString ssPath = AppConfig::basePath() + "/" +
-                   ToQString(AppConfig::stylesheetsPath());
+  // On Linux, open the instance's stylesheets directory (where custom themes
+  // from modlists live).  Falls back to the user data dir if no instance, or
+  // to the app dir on Windows.
+#ifndef _WIN32
+  QString ssPath;
+  if (auto ci = InstanceManager::singleton().currentInstance()) {
+    ssPath = ci->directory() + "/" +
+             QString::fromStdWString(AppConfig::stylesheetsPath());
+  } else {
+    ssPath = fluorineDataDir() + "/stylesheets";
+  }
   QDir().mkpath(ssPath);
+#else
+  QString ssPath = QCoreApplication::applicationDirPath() + "/" +
+                   ToQString(AppConfig::stylesheetsPath());
+#endif
   shell::Explore(ssPath);
 }

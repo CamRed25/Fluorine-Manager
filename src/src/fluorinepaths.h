@@ -3,13 +3,11 @@
 
 #include <QString>
 
-/// Returns the shared Fluorine data directory: ~/.local/share/fluorine
-/// Uses $HOME directly to bypass Flatpak's XDG_DATA_HOME remapping
-/// (the Flatpak has --filesystem=home).
+/// Returns the Fluorine data directory: ~/.var/app/com.fluorine.manager
 QString fluorineDataDir();
 
-/// One-time migration from the old ~/.var/app/com.fluorine.manager/ path
-/// to ~/.local/share/fluorine/. Call before initLogging().
+/// One-time migration from ~/.local/share/fluorine/ back to
+/// ~/.var/app/com.fluorine.manager/. Call before initLogging().
 void fluorineMigrateDataDir();
 
 #endif  // FLUORINEPATHS_H

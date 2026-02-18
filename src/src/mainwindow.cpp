@@ -83,6 +83,8 @@ along with Mod Organizer.  If not, see <http://www.gnu.org/licenses/>.
 #include <uibase/versioninfo.h>
 #ifdef _WIN32
 #include <usvfs/usvfs.h>
+#else
+#include "fluorinepaths.h"
 #endif
 
 #include "directoryrefresher.h"
@@ -2649,11 +2651,21 @@ void MainWindow::openPluginsFolder()
 
 void MainWindow::openStylesheetsFolder()
 {
-  // Open the user stylesheets directory where custom styles can be added.
-  // Create it if it doesn't exist.
+#ifndef _WIN32
+  // On Linux, open the instance's stylesheets directory (where custom themes
+  // from modlists live), or the user data dir as fallback.
+  QString ssPath;
+  if (auto ci = InstanceManager::singleton().currentInstance()) {
+    ssPath = ci->directory() + "/" +
+             QString::fromStdWString(AppConfig::stylesheetsPath());
+  } else {
+    ssPath = fluorineDataDir() + "/stylesheets";
+  }
+  QDir().mkpath(ssPath);
+#else
   QString ssPath = AppConfig::basePath() + "/" +
                    ToQString(AppConfig::stylesheetsPath());
-  QDir().mkpath(ssPath);
+#endif
   shell::Explore(ssPath);
 }
 

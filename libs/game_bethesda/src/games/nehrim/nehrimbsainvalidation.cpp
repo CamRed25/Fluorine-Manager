@@ -2,7 +2,7 @@
 
 NehrimBSAInvalidation::NehrimBSAInvalidation(MOBase::DataArchives* dataArchives,
                                              MOBase::IPluginGame const* game)
-    : GamebryoBSAInvalidation(dataArchives, "oblivion.ini", game)
+    : GamebryoBSAInvalidation(dataArchives, "Oblivion.ini", game)
 {}
 
 QString NehrimBSAInvalidation::invalidationBSAName() const

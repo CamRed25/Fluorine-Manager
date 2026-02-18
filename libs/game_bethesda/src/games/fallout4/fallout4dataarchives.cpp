@@ -22,8 +22,8 @@ QStringList Fallout4DataArchives::archives(const MOBase::IProfile* profile) cons
   QStringList result;
 
   QString iniFile = profile->localSettingsEnabled()
-                        ? QDir(profile->absolutePath()).absoluteFilePath("fallout4.ini")
-                        : localGameDirectory().absoluteFilePath("fallout4.ini");
+                        ? QDir(profile->absolutePath()).absoluteFilePath("Fallout4.ini")
+                        : localGameDirectory().absoluteFilePath("Fallout4.ini");
   result.append(getArchivesFromKey(iniFile, "SResourceArchiveList"));
   result.append(getArchivesFromKey(iniFile, "SResourceArchiveList2"));
 
@@ -36,8 +36,8 @@ void Fallout4DataArchives::writeArchiveList(MOBase::IProfile* profile,
   QString list = before.join(", ");
 
   QString iniFile = profile->localSettingsEnabled()
-                        ? QDir(profile->absolutePath()).absoluteFilePath("fallout4.ini")
-                        : localGameDirectory().absoluteFilePath("fallout4.ini");
+                        ? QDir(profile->absolutePath()).absoluteFilePath("Fallout4.ini")
+                        : localGameDirectory().absoluteFilePath("Fallout4.ini");
   if (list.length() > 255) {
     int splitIdx = list.lastIndexOf(",", 256);
     setArchivesToKey(iniFile, "SResourceArchiveList", list.mid(0, splitIdx));
