@@ -13,8 +13,8 @@ QStringList OblivionDataArchives::archives(const MOBase::IProfile* profile) cons
   QStringList result;
 
   QString iniFile = profile->localSettingsEnabled()
-                        ? QDir(profile->absolutePath()).absoluteFilePath("oblivion.ini")
-                        : localGameDirectory().absoluteFilePath("oblivion.ini");
+                        ? QDir(profile->absolutePath()).absoluteFilePath("Oblivion.ini")
+                        : localGameDirectory().absoluteFilePath("Oblivion.ini");
   result.append(getArchivesFromKey(iniFile, "SArchiveList"));
 
   return result;
@@ -26,7 +26,7 @@ void OblivionDataArchives::writeArchiveList(MOBase::IProfile* profile,
   QString list = before.join(", ");
 
   QString iniFile = profile->localSettingsEnabled()
-                        ? QDir(profile->absolutePath()).absoluteFilePath("oblivion.ini")
-                        : localGameDirectory().absoluteFilePath("oblivion.ini");
+                        ? QDir(profile->absolutePath()).absoluteFilePath("Oblivion.ini")
+                        : localGameDirectory().absoluteFilePath("Oblivion.ini");
   setArchivesToKey(iniFile, "SArchiveList", list);
 }

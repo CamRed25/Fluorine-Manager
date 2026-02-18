@@ -103,7 +103,9 @@ QStringList findCaseVariants(const QString& path)
 
 WinePrefix::WinePrefix(const QString& prefixPath)
     : m_prefixPath(QDir::cleanPath(prefixPath))
-{}
+{
+  MOBase::log::debug("WinePrefix: initialized with path '{}'", m_prefixPath);
+}
 
 bool WinePrefix::isValid() const
 {
@@ -133,16 +135,38 @@ QString WinePrefix::appdataLocal() const
 bool WinePrefix::deployPlugins(const QStringList& plugins, const QString& dataDir) const
 {
   if (!isValid()) {
+    MOBase::log::error("deployPlugins: prefix '{}' is not valid (drive_c not found)",
+                       m_prefixPath);
     return false;
   }
 
   const QString pluginsDir = QDir(appdataLocal()).filePath(dataDir);
+  MOBase::log::debug("deployPlugins: target dir='{}', {} plugins to deploy",
+                     pluginsDir, plugins.size());
+
   if (!QDir().mkpath(pluginsDir)) {
+    MOBase::log::error("deployPlugins: failed to create directory '{}'", pluginsDir);
     return false;
   }
 
-  QFile pluginsFile(QDir(pluginsDir).filePath("Plugins.txt"));
+  // Remove all case variants of plugins.txt and loadorder.txt before writing.
+  // Linux is case-sensitive, so a stale "plugins.txt" can coexist with
+  // "Plugins.txt" and the game may read the wrong one (e.g. FalloutNV reads
+  // lowercase "plugins.txt").
+  const QString pluginsPath  = QDir(pluginsDir).filePath("Plugins.txt");
+  const QString loadOrderPath = QDir(pluginsDir).filePath("loadorder.txt");
+  for (const QString& variant : findCaseVariants(pluginsPath)) {
+    MOBase::log::debug("deployPlugins: removing stale plugins variant '{}'", variant);
+    QFile::remove(variant);
+  }
+  for (const QString& variant : findCaseVariants(loadOrderPath)) {
+    MOBase::log::debug("deployPlugins: removing stale loadorder variant '{}'", variant);
+    QFile::remove(variant);
+  }
+
+  QFile pluginsFile(pluginsPath);
   if (!pluginsFile.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+    MOBase::log::error("deployPlugins: failed to open '{}' for writing", pluginsPath);
     return false;
   }
 
@@ -151,9 +175,23 @@ bool WinePrefix::deployPlugins(const QStringList& plugins, const QString& dataDi
     pluginsStream << plugin << "\r\n";
   }
   pluginsFile.close();
+  MOBase::log::debug("deployPlugins: wrote {} plugins to '{}'", plugins.size(),
+                     pluginsPath);
 
-  QFile loadOrderFile(QDir(pluginsDir).filePath("loadorder.txt"));
+  // Also write lowercase "plugins.txt" for games that expect it (e.g. FalloutNV).
+  const QString pluginsLower = QDir(pluginsDir).filePath("plugins.txt");
+  if (pluginsLower != pluginsPath) {
+    QFile::remove(pluginsLower);
+    if (!QFile::copy(pluginsPath, pluginsLower)) {
+      MOBase::log::warn("deployPlugins: failed to create lowercase copy '{}'",
+                        pluginsLower);
+    }
+  }
+
+  QFile loadOrderFile(loadOrderPath);
   if (!loadOrderFile.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+    MOBase::log::error("deployPlugins: failed to open '{}' for writing",
+                       loadOrderPath);
     return false;
   }
 
@@ -166,6 +204,7 @@ bool WinePrefix::deployPlugins(const QStringList& plugins, const QString& dataDi
 
     loadOrderStream << line << "\r\n";
   }
+  MOBase::log::debug("deployPlugins: wrote loadorder.txt to '{}'", loadOrderPath);
 
   return true;
 }
@@ -175,9 +214,12 @@ bool WinePrefix::deployProfileIni(const QString& sourceIniPath,
 {
   const QFileInfo iniInfo(sourceIniPath);
   if (!iniInfo.exists() || !iniInfo.isFile()) {
+    MOBase::log::warn("deployProfileIni: source '{}' does not exist or is not a file",
+                      sourceIniPath);
     return false;
   }
 
+  MOBase::log::debug("deployProfileIni: '{}' -> '{}'", sourceIniPath, targetIniPath);
   const QString destination = QDir::cleanPath(targetIniPath);
 
   // Back up ALL case-insensitive variants (e.g. both skyrimprefs.ini and
@@ -204,7 +246,22 @@ bool WinePrefix::deployProfileIni(const QString& sourceIniPath,
     }
   }
 
-  return copyFileWithParents(iniInfo.absoluteFilePath(), destination);
+  if (!copyFileWithParents(iniInfo.absoluteFilePath(), destination)) {
+    return false;
+  }
+
+  // Create a lowercase alias so the game can find the INI regardless of
+  // which casing it uses (e.g. FalloutNV reads "fallout.ini" but we deploy
+  // "Fallout.ini").
+  const QFileInfo destInfo(destination);
+  const QString lowerName = destInfo.fileName().toLower();
+  if (lowerName != destInfo.fileName()) {
+    const QString lowerPath = QDir(destInfo.path()).filePath(lowerName);
+    QFile::remove(lowerPath);  // remove stale copy/symlink if any
+    QFile::link(destInfo.fileName(), lowerPath);
+  }
+
+  return true;
 }
 
 bool WinePrefix::deployProfileSaves(const QString& profileSaveDir, const QString& gameName,
@@ -212,9 +269,13 @@ bool WinePrefix::deployProfileSaves(const QString& profileSaveDir, const QString
                                     bool clearDestination) const
 {
   if (!isValid()) {
+    MOBase::log::error("deployProfileSaves: prefix '{}' is not valid", m_prefixPath);
     return false;
   }
 
+  MOBase::log::debug("deployProfileSaves: profileSaveDir='{}', gameName='{}', "
+                     "saveRelativePath='{}', clearDestination={}",
+                     profileSaveDir, gameName, saveRelativePath, clearDestination);
   const QString gameRoot = QDir(myGamesPath()).filePath(gameName);
   const QString normalizedSavePath =
       QString(saveRelativePath).replace('\\', '/').trimmed();
@@ -258,9 +319,13 @@ bool WinePrefix::syncSavesBack(const QString& profileSaveDir, const QString& gam
                                const QString& saveRelativePath) const
 {
   if (!isValid()) {
+    MOBase::log::error("syncSavesBack: prefix '{}' is not valid", m_prefixPath);
     return false;
   }
 
+  MOBase::log::debug("syncSavesBack: profileSaveDir='{}', gameName='{}', "
+                     "saveRelativePath='{}'",
+                     profileSaveDir, gameName, saveRelativePath);
   const QString gameRoot = QDir(myGamesPath()).filePath(gameName);
   const QString normalizedSavePath =
       QString(saveRelativePath).replace('\\', '/').trimmed();
@@ -350,10 +415,14 @@ void WinePrefix::restoreStaleBackups() const
 bool WinePrefix::syncProfileInisBack(
     const QList<QPair<QString, QString>>& iniMappings) const
 {
+  MOBase::log::debug("syncProfileInisBack: {} INI mappings to sync back",
+                     iniMappings.size());
   bool allCopied = true;
   for (const auto& mapping : iniMappings) {
     const QString profileIniPath = QDir::cleanPath(mapping.first);
     const QString prefixIniPath  = QDir::cleanPath(mapping.second);
+    MOBase::log::debug("syncProfileInisBack: profile='{}' <- prefix='{}'",
+                       profileIniPath, prefixIniPath);
 
     // Find ALL case-insensitive variants of the INI file (e.g. both
     // skyrimprefs.ini and SkyrimPrefs.ini may exist on Linux).

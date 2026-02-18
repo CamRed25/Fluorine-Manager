@@ -32,6 +32,7 @@ along with Mod Organizer.  If not, see <http://www.gnu.org/licenses/>.
 #include <unistd.h>
 #endif
 
+class QProcess;
 class Settings;
 
 namespace spawn
@@ -62,6 +63,7 @@ struct SpawnParameters
 #else
   int stdOut = -1;
   int stdErr = -1;
+  QProcess** helperProcessOut = nullptr;
 #endif
 };
 

@@ -126,14 +126,40 @@ QString resolveWinePrefixPath(const Settings& settings,
 
 QString resolveWineDataDirName(const IPluginGame* managedGame)
 {
-  if (managedGame != nullptr) {
-    const QString docsLeaf = managedGame->documentsDirectory().dirName().trimmed();
-    if (!docsLeaf.isEmpty()) {
+  if (managedGame == nullptr) {
+    return {};
+  }
+
+  // Primary: the My Games subfolder name matches the AppData/Local folder
+  // for almost every Bethesda game.
+  const QDir docsDir = managedGame->documentsDirectory();
+  if (docsDir.exists()) {
+    const QString docsLeaf = docsDir.dirName().trimmed();
+    if (!docsLeaf.isEmpty() && docsLeaf != QStringLiteral(".")) {
       return docsLeaf;
     }
-    return managedGame->gameName();
   }
-  return {};
+
+  // Fallback: gameShortName is used by the base Gamebryo mappings() for
+  // the AppData/Local folder and matches for most games.
+  const QString shortName = managedGame->gameShortName();
+  if (!shortName.isEmpty()) {
+    log::warn("resolveWineDataDirName: documentsDirectory() is empty or "
+              "invalid, falling back to gameShortName '{}'",
+              shortName);
+    return shortName;
+  }
+
+  log::warn("resolveWineDataDirName: both documentsDirectory() and "
+            "gameShortName() are empty, falling back to gameName '{}'",
+            managedGame->gameName());
+  return managedGame->gameName();
+}
+
+QString resolvePrefixGameDocumentsDir(const WinePrefix& prefix,
+                                      const QString& dataDirName)
+{
+  return QDir(prefix.myGamesPath()).filePath(dataDirName);
 }
 
 QString resolveSaveRelativePath(std::shared_ptr<Profile> profile,
@@ -2166,20 +2192,29 @@ bool OrganizerCore::beforeRun(
           pluginsFile.close();
 
           if (!plugins.isEmpty()) {
-            prefix.deployPlugins(plugins, dataDirName);
-            log::debug("Deployed {} plugins to prefix '{}'", plugins.size(),
-                       prefixPathStr);
+            if (prefix.deployPlugins(plugins, dataDirName)) {
+              log::debug("Deployed {} plugins to prefix '{}' (dataDirName='{}')",
+                         plugins.size(), prefixPathStr, dataDirName);
+            } else {
+              log::error("Failed to deploy {} plugins to prefix '{}' "
+                         "(dataDirName='{}')",
+                         plugins.size(), prefixPathStr, dataDirName);
+            }
+          } else {
+            log::warn("Profile plugins.txt is empty or contains only comments, "
+                      "skipping plugin deployment");
           }
         }
 
         if (m_CurrentProfile->localSettingsEnabled()) {
+          const QString targetIniBase =
+              resolvePrefixGameDocumentsDir(prefix, dataDirName);
           int deployedIniCount = 0;
           for (const QString& iniFile : managedGame()->iniFiles()) {
             const QString sourceIni =
                 m_CurrentProfile->absoluteIniFilePath(iniFile);
-            const QString targetIni = MOBase::resolveFileCaseInsensitive(
-                QFileInfo(managedGame()->documentsDirectory(), iniFile)
-                    .absoluteFilePath());
+            const QString targetIni =
+                QDir(targetIniBase).filePath(QFileInfo(iniFile).fileName());
             log::debug("INI deploy check: source='{}' exists={}, target='{}'",
                        sourceIni, QFileInfo::exists(sourceIni), targetIni);
             if (QFileInfo::exists(sourceIni) &&
@@ -2265,13 +2300,14 @@ void OrganizerCore::afterRun(const QFileInfo& binary, DWORD exitCode)
         }
 
         if (m_CurrentProfile->localSettingsEnabled()) {
+          const QString targetIniBase =
+              resolvePrefixGameDocumentsDir(prefix, dataDirName);
           QList<QPair<QString, QString>> iniMappings;
           for (const QString& iniFile : managedGame()->iniFiles()) {
             const QString profileIni =
                 m_CurrentProfile->absoluteIniFilePath(iniFile);
-            const QString targetIni = MOBase::resolveFileCaseInsensitive(
-                QFileInfo(managedGame()->documentsDirectory(), iniFile)
-                    .absoluteFilePath());
+            const QString targetIni =
+                QDir(targetIniBase).filePath(QFileInfo(iniFile).fileName());
             iniMappings.append({profileIni, targetIni});
             log::debug("Sync profile INI '{}' <- '{}'", profileIni, targetIni);
           }

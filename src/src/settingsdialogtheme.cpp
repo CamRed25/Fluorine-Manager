@@ -1,11 +1,15 @@
 #include "settingsdialogtheme.h"
 #include "categoriesdialog.h"
 #include "colortable.h"
+#include "instancemanager.h"
 #include "modlist.h"
 #include "shared/appconfig.h"
 #include "ui_settingsdialog.h"
 #include <questionboxmemory.h>
 #include <utility.h>
+#ifndef _WIN32
+#include "fluorinepaths.h"
+#endif
 
 using namespace MOBase;
 
@@ -52,14 +56,35 @@ void ThemeSettingsTab::addStyles()
 
   ui->styleBox->insertSeparator(ui->styleBox->count());
 
-  QDirIterator iter(QCoreApplication::applicationDirPath() + "/" +
-                        QString::fromStdWString(AppConfig::stylesheetsPath()),
-                    QStringList("*.qss"), QDir::Files);
+  // Collect .qss files from all stylesheet search directories, deduplicating
+  // by filename so bundled themes aren't listed twice.
+  const QString ssSubdir = QString::fromStdWString(AppConfig::stylesheetsPath());
+  QStringList searchDirs;
+  searchDirs << QCoreApplication::applicationDirPath() + "/" + ssSubdir;
+#ifndef _WIN32
+  if (auto ci = InstanceManager::singleton().currentInstance()) {
+    // currentInstance() returns a bare Instance (readFromIni() not called),
+    // so baseDirectory() is empty. Use directory() which is always set.
+    const QString instanceDir = ci->directory() + "/" + ssSubdir;
+    if (!searchDirs.contains(instanceDir))
+      searchDirs << instanceDir;
+  }
+  const QString userDir = fluorineDataDir() + "/stylesheets";
+  if (!searchDirs.contains(userDir))
+    searchDirs << userDir;
+#endif
 
-  while (iter.hasNext()) {
-    iter.next();
-
-    ui->styleBox->addItem(iter.fileInfo().completeBaseName(), iter.fileName());
+  QSet<QString> seen;
+  for (const auto& dir : searchDirs) {
+    QDirIterator iter(dir, QStringList("*.qss"), QDir::Files);
+    while (iter.hasNext()) {
+      iter.next();
+      const QString fileName = iter.fileName();
+      if (seen.contains(fileName))
+        continue;
+      seen.insert(fileName);
+      ui->styleBox->addItem(iter.fileInfo().completeBaseName(), fileName);
+    }
   }
 }
 
@@ -75,7 +100,21 @@ void ThemeSettingsTab::selectStyle()
 
 void ThemeSettingsTab::onExploreStyles()
 {
+  // On Linux, open the instance's stylesheets directory (where custom themes
+  // from modlists live).  Falls back to the user data dir if no instance, or
+  // to the app dir on Windows.
+#ifndef _WIN32
+  QString ssPath;
+  if (auto ci = InstanceManager::singleton().currentInstance()) {
+    ssPath = ci->directory() + "/" +
+             QString::fromStdWString(AppConfig::stylesheetsPath());
+  } else {
+    ssPath = fluorineDataDir() + "/stylesheets";
+  }
+  QDir().mkpath(ssPath);
+#else
   QString ssPath = QCoreApplication::applicationDirPath() + "/" +
                    ToQString(AppConfig::stylesheetsPath());
+#endif
   shell::Explore(ssPath);
 }

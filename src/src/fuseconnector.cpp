@@ -1,5 +1,6 @@
 #include "fuseconnector.h"
 
+#include "fluorinepaths.h"
 #include "settings.h"
 #include "vfs/vfstree.h"
 
@@ -277,6 +278,9 @@ bool FuseConnector::mount(
   std::error_code ec;
   fs::create_directories(m_stagingDir, ec);
   fs::create_directories(m_overwriteDir, ec);
+  if (!m_customOutputDir.empty()) {
+    fs::create_directories(m_customOutputDir, ec);
+  }
 
   // Scan + cache base game files BEFORE mounting (after mount they're hidden).
   // Reuse the cache across mount/unmount cycles since base game files don't
@@ -432,9 +436,8 @@ void FuseConnector::rebuild(
   m_lastMods     = mods;
 
   if (m_helperProcess) {
-    const QString dataDir =
-        QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
-    const QString configPath = QDir(dataDir).filePath("fluorine/vfs.cfg");
+    const QString dataDir = fluorineDataDir();
+    const QString configPath = QDir(dataDir).filePath("vfs.cfg");
     writeVfsConfig(configPath, QString::fromStdString(m_mountPoint),
                    overwrite_dir, QString::fromStdString(m_gameDir),
                    data_dir_name, mods);
@@ -470,6 +473,26 @@ void FuseConnector::updateMapping(const MappingType& mapping)
   const QString overwriteDir = Settings::instance().paths().overwrite();
 
   auto mods = buildModsFromMapping(mapping, dataDirPath, overwriteDir);
+
+  // Check if any mapping has createTarget set — that mod directory should
+  // receive newly created files instead of the overwrite directory.
+  m_customOutputDir.clear();
+  for (const auto& map : mapping) {
+    if (map.createTarget) {
+      log::debug("Found createTarget mapping: source='{}', dest='{}', isDir={}",
+                 map.source, map.destination, map.isDirectory);
+    }
+    if (map.createTarget && map.isDirectory) {
+      m_customOutputDir =
+          QDir::cleanPath(QDir::fromNativeSeparators(map.source)).toStdString();
+      log::debug("Custom output directory set to: {}",
+                 QString::fromStdString(m_customOutputDir));
+      break;
+    }
+  }
+  if (m_customOutputDir.empty()) {
+    log::debug("No createTarget mapping found, using overwrite dir");
+  }
 
   // Deploy non-data-dir mappings as real symlinks and collect file-level
   // data-dir mappings for VFS tree injection.
@@ -623,8 +646,17 @@ void FuseConnector::flushStaging()
   }
 
   const fs::path staging(m_stagingDir);
-  const fs::path overwrite(m_overwriteDir);
+  const fs::path overwrite = m_customOutputDir.empty()
+                                 ? fs::path(m_overwriteDir)
+                                 : fs::path(m_customOutputDir);
+
+  log::debug("flushStaging: staging='{}', customOutput='{}', dest='{}'",
+             QString::fromStdString(m_stagingDir),
+             QString::fromStdString(m_customOutputDir),
+             QString::fromStdString(overwrite.string()));
+
   if (!fs::exists(staging)) {
+    log::debug("flushStaging: staging dir does not exist, nothing to flush");
     return;
   }
 
@@ -757,11 +789,10 @@ bool FuseConnector::mountViaHelper(
     const QString& data_dir_name,
     const std::vector<std::pair<std::string, std::string>>& mods)
 {
-  const QString dataDir =
-      QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
-  const QString configPath = QDir(dataDir).filePath("fluorine/vfs.cfg");
+  const QString dataDir = fluorineDataDir();
+  const QString configPath = QDir(dataDir).filePath("vfs.cfg");
   const QString helperBin =
-      QDir(dataDir).filePath("fluorine/bin/mo2-vfs-helper");
+      QDir(dataDir).filePath("bin/mo2-vfs-helper");
 
   if (!QFile::exists(helperBin)) {
     throw FuseConnectorException(
@@ -823,6 +854,10 @@ void FuseConnector::writeVfsConfig(
   out << "game_dir=" << game_dir << "\n";
   out << "data_dir_name=" << data_dir_name << "\n";
   out << "overwrite_dir=" << overwrite_dir << "\n";
+
+  if (!m_customOutputDir.empty()) {
+    out << "output_dir=" << QString::fromStdString(m_customOutputDir) << "\n";
+  }
 
   for (const auto& [name, path] : mods) {
     out << "mod=" << QString::fromStdString(name) << "|"

@@ -227,15 +227,15 @@ void GameSkyrimSE::initializeProfile(const QDir& path, ProfileSettings settings)
 
   if (settings.testFlag(IPluginGame::CONFIGURATION)) {
     if (settings.testFlag(IPluginGame::PREFER_DEFAULTS) ||
-        !QFileInfo(myGamesPath() + "/skyrim.ini").exists()) {
-      copyToProfile(gameDirectory().absolutePath(), path, "skyrim_default.ini",
-                    "skyrim.ini");
+        !QFileInfo(myGamesPath() + "/Skyrim.ini").exists()) {
+      copyToProfile(gameDirectory().absolutePath(), path, "Skyrim_default.ini",
+                    "Skyrim.ini");
     } else {
-      copyToProfile(myGamesPath(), path, "skyrim.ini");
+      copyToProfile(myGamesPath(), path, "Skyrim.ini");
     }
 
-    copyToProfile(myGamesPath(), path, "skyrimprefs.ini");
-    copyToProfile(myGamesPath(), path, "skyrimcustom.ini");
+    copyToProfile(myGamesPath(), path, "SkyrimPrefs.ini");
+    copyToProfile(myGamesPath(), path, "SkyrimCustom.ini");
   }
 }
 
@@ -298,7 +298,7 @@ QString GameSkyrimSE::gameNexusName() const
 
 QStringList GameSkyrimSE::iniFiles() const
 {
-  return {"skyrim.ini", "skyrimprefs.ini", "skyrimcustom.ini"};
+  return {"Skyrim.ini", "SkyrimPrefs.ini", "SkyrimCustom.ini"};
 }
 
 QStringList GameSkyrimSE::DLCPlugins() const

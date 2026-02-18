@@ -28,7 +28,7 @@ if [ -n "$INSTANCE_DIR" ] && [ -d "$INSTANCE_DIR" ]; then
 else
     # Global instance: shared overlay at ~/.local/share/fluorine/
     # Use $HOME directly to bypass Flatpak's XDG_DATA_HOME remapping.
-    USER_DIR="$HOME/.local/share/fluorine"
+    USER_DIR="$HOME/.var/app/com.fluorine.manager"
 fi
 
 # ── Create writable overlay with symlinks to bundled files ──
@@ -79,11 +79,15 @@ setup_overlay() {
     # VFS helper must be a real binary copy (not a symlink to /app/) because
     # it runs on the host via flatpak-spawn --host, where /app/ doesn't exist.
     # libfuse3 is statically linked, so no extra .so files needed.
-    VFS_HELPER_DIR="$HOME/.local/share/fluorine/bin"
+    VFS_HELPER_DIR="$HOME/.var/app/com.fluorine.manager/bin"
+    mkdir -p "${VFS_HELPER_DIR}"
     if [ -e "${BUNDLED}/mo2-vfs-helper" ]; then
-        mkdir -p "${VFS_HELPER_DIR}"
         cp -f "${BUNDLED}/mo2-vfs-helper" "${VFS_HELPER_DIR}/mo2-vfs-helper"
         chmod +x "${VFS_HELPER_DIR}/mo2-vfs-helper"
+    fi
+    if [ -e "${BUNDLED}/mo2-process-helper" ]; then
+        cp -f "${BUNDLED}/mo2-process-helper" "${VFS_HELPER_DIR}/mo2-process-helper"
+        chmod +x "${VFS_HELPER_DIR}/mo2-process-helper"
     fi
 }
 

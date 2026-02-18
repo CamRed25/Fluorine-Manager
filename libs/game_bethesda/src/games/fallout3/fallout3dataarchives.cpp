@@ -14,8 +14,8 @@ QStringList Fallout3DataArchives::archives(const MOBase::IProfile* profile) cons
   QStringList result;
 
   QString iniFile = profile->localSettingsEnabled()
-                        ? QDir(profile->absolutePath()).absoluteFilePath("fallout.ini")
-                        : localGameDirectory().absoluteFilePath("fallout.ini");
+                        ? QDir(profile->absolutePath()).absoluteFilePath("Fallout.ini")
+                        : localGameDirectory().absoluteFilePath("Fallout.ini");
   result.append(getArchivesFromKey(iniFile, "SArchiveList"));
 
   return result;
@@ -27,7 +27,7 @@ void Fallout3DataArchives::writeArchiveList(MOBase::IProfile* profile,
   QString list = before.join(", ");
 
   QString iniFile = profile->localSettingsEnabled()
-                        ? QDir(profile->absolutePath()).absoluteFilePath("fallout.ini")
-                        : localGameDirectory().absoluteFilePath("fallout.ini");
+                        ? QDir(profile->absolutePath()).absoluteFilePath("Fallout.ini")
+                        : localGameDirectory().absoluteFilePath("Fallout.ini");
   setArchivesToKey(iniFile, "SArchiveList", list);
 }

@@ -19,8 +19,8 @@ QStringList SkyrimVRDataArchives::archives(const MOBase::IProfile* profile) cons
   QStringList result;
 
   QString iniFile = profile->localSettingsEnabled()
-                        ? QDir(profile->absolutePath()).absoluteFilePath("skyrimvr.ini")
-                        : localGameDirectory().absoluteFilePath("skyrimvr.ini");
+                        ? QDir(profile->absolutePath()).absoluteFilePath("SkyrimVR.ini")
+                        : localGameDirectory().absoluteFilePath("SkyrimVR.ini");
   result.append(getArchivesFromKey(iniFile, "SResourceArchiveList"));
   result.append(getArchivesFromKey(iniFile, "SResourceArchiveList2"));
 
@@ -33,8 +33,8 @@ void SkyrimVRDataArchives::writeArchiveList(MOBase::IProfile* profile,
   QString list = before.join(", ");
 
   QString iniFile = profile->localSettingsEnabled()
-                        ? QDir(profile->absolutePath()).absoluteFilePath("skyrimvr.ini")
-                        : localGameDirectory().absoluteFilePath("skyrimvr.ini");
+                        ? QDir(profile->absolutePath()).absoluteFilePath("SkyrimVR.ini")
+                        : localGameDirectory().absoluteFilePath("SkyrimVR.ini");
   if (list.length() > 255) {
     int splitIdx = list.lastIndexOf(",", 256);
     setArchivesToKey(iniFile, "SResourceArchiveList", list.mid(0, splitIdx));

@@ -2,7 +2,7 @@
 
 EnderalBSAInvalidation::EnderalBSAInvalidation(MOBase::DataArchives* dataArchives,
                                                MOBase::IPluginGame const* game)
-    : GamebryoBSAInvalidation(dataArchives, "enderal.ini", game)
+    : GamebryoBSAInvalidation(dataArchives, "Enderal.ini", game)
 {}
 
 QString EnderalBSAInvalidation::invalidationBSAName() const

@@ -406,7 +406,7 @@ bool createAndMakeWritable(const std::wstring& subPath)
 bool setLogDirectory(const QString& dir)
 {
 #ifndef _WIN32
-  // On Linux, all logs go to ~/.local/share/fluorine/logs/
+  // On Linux, all logs go to ~/.var/app/com.fluorine.manager/logs/
   const QString logDir = fluorineDataDir() + "/logs";
   QDir().mkpath(logDir);
   const auto logFile = logDir + "/" +

@@ -8,13 +8,11 @@
 #include <cstdio>
 
 static const QString OldRoot =
-    QDir::homePath() + "/.var/app/com.fluorine.manager";
+    QDir::homePath() + "/.local/share/fluorine";
 
 QString fluorineDataDir()
 {
-  // Use $HOME directly so this resolves the same path in both native
-  // and Flatpak builds (the Flatpak has --filesystem=home).
-  return QDir::homePath() + "/.local/share/fluorine";
+  return QDir::homePath() + "/.var/app/com.fluorine.manager";
 }
 
 void fluorineMigrateDataDir()

@@ -12,8 +12,8 @@ QStringList FalloutNVDataArchives::archives(const MOBase::IProfile* profile) con
   QStringList result;
 
   QString iniFile = profile->localSettingsEnabled()
-                        ? QDir(profile->absolutePath()).absoluteFilePath("fallout.ini")
-                        : localGameDirectory().absoluteFilePath("fallout.ini");
+                        ? QDir(profile->absolutePath()).absoluteFilePath("Fallout.ini")
+                        : localGameDirectory().absoluteFilePath("Fallout.ini");
   result.append(getArchivesFromKey(iniFile, "SArchiveList",
                                    8192));  // NVAC expands the maximum string limit
 
@@ -26,7 +26,7 @@ void FalloutNVDataArchives::writeArchiveList(MOBase::IProfile* profile,
   QString list = before.join(", ");
 
   QString iniFile = profile->localSettingsEnabled()
-                        ? QDir(profile->absolutePath()).absoluteFilePath("fallout.ini")
-                        : localGameDirectory().absoluteFilePath("fallout.ini");
+                        ? QDir(profile->absolutePath()).absoluteFilePath("Fallout.ini")
+                        : localGameDirectory().absoluteFilePath("Fallout.ini");
   setArchivesToKey(iniFile, "SArchiveList", list);
 }

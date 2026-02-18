@@ -69,8 +69,20 @@ def _host_cp(src: str, dst: str) -> bool:
         return False
 
 
+def _ensure_readable(path: str):
+    """Ensure a file has owner-read permission (mod archives sometimes strip it)."""
+    try:
+        st = os.stat(path)
+        if not (st.st_mode & 0o400):
+            os.chmod(path, st.st_mode | 0o400)
+    except OSError:
+        pass
+
+
 def _reflink_copy(src: str, dst: str):
     """Copy with reflink (CoW) if supported, fallback to regular copy."""
+    _ensure_readable(src)
+    last_err = None
     try:
         subprocess.run(
             ["cp", "--reflink=auto", "-f", "--", src, dst],
@@ -78,16 +90,18 @@ def _reflink_copy(src: str, dst: str):
             capture_output=True,
         )
         return
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        pass
+    except subprocess.CalledProcessError as e:
+        last_err = f"cp failed (exit {e.returncode}): {e.stderr.decode(errors='replace').strip()}"
+    except FileNotFoundError:
+        last_err = "cp command not found"
     try:
         shutil.copy2(src, dst)
         return
-    except OSError:
-        pass
+    except OSError as e:
+        last_err = f"{e.strerror} (errno {e.errno})"
     if _IN_FLATPAK and _host_cp(src, dst):
         return
-    raise OSError(f"Root Builder: failed to copy {src} -> {dst}")
+    raise OSError(f"Root Builder: failed to copy {src} -> {dst}: {last_err}")
 
 
 def _ensure_writable(path: str):

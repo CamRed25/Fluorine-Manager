@@ -113,14 +113,14 @@ void GameOblivion::initializeProfile(const QDir& path, ProfileSettings settings)
 
   if (settings.testFlag(IPluginGame::CONFIGURATION)) {
     if (settings.testFlag(IPluginGame::PREFER_DEFAULTS) ||
-        !QFileInfo(myGamesPath() + "/oblivion.ini").exists()) {
-      copyToProfile(gameDirectory().absolutePath(), path, "oblivion_default.ini",
-                    "oblivion.ini");
+        !QFileInfo(myGamesPath() + "/Oblivion.ini").exists()) {
+      copyToProfile(gameDirectory().absolutePath(), path, "Oblivion_default.ini",
+                    "Oblivion.ini");
     } else {
-      copyToProfile(myGamesPath(), path, "oblivion.ini");
+      copyToProfile(myGamesPath(), path, "Oblivion.ini");
     }
 
-    copyToProfile(myGamesPath(), path, "oblivionprefs.ini");
+    copyToProfile(myGamesPath(), path, "OblivionPrefs.ini");
   }
 }
 
@@ -171,7 +171,7 @@ QString GameOblivion::gameNexusName() const
 
 QStringList GameOblivion::iniFiles() const
 {
-  return {"oblivion.ini", "oblivionprefs.ini"};
+  return {"Oblivion.ini", "OblivionPrefs.ini"};
 }
 
 QStringList GameOblivion::DLCPlugins() const

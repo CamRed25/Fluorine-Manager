@@ -90,6 +90,13 @@ public:  // IPluginFileMapper interface
 public:  // Other (e.g. for game features)
   QString myGamesPath() const;
 
+  // Returns the folder name used by the game under AppData/Local
+  // (e.g. "FalloutNV", "Skyrim Special Edition").  Defaults to the
+  // My Games subfolder name.  Override in games where these differ
+  // (e.g. Enderal uses lowercase "enderal" in AppData but "Enderal"
+  // in My Games).
+  virtual QString localAppName() const;
+
 protected:
   // Retrieve the saves extension for the game.
   virtual QString savegameExtension() const   = 0;

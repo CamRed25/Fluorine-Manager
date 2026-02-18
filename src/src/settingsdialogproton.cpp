@@ -52,23 +52,36 @@ ProtonSettingsTab::ProtonSettingsTab(Settings& s, SettingsDialog& d)
   populateProtons();
 
   QObject::connect(ui->protonVersionCombo, &QComboBox::currentIndexChanged, this,
-                   [this](int) {
-                     if (auto cfg = FluorineConfig::load();
-                         cfg.has_value() && cfg->prefixExists()) {
-                       const QString protonName =
-                           ui->protonVersionCombo->currentText().trimmed();
-                       const QString protonPath = ui->protonVersionCombo
-                                                      ->currentData(Qt::UserRole + 1)
-                                                      .toString()
-                                                      .trimmed();
+                   [this](int index) {
+                     if (index < 0) {
+                       return;
+                     }
 
-                       if (!protonName.isEmpty() && !protonPath.isEmpty() &&
-                           (cfg->proton_name != protonName ||
-                            cfg->proton_path != protonPath)) {
-                         cfg->proton_name = protonName;
-                         cfg->proton_path = protonPath;
-                         cfg->save();
-                       }
+                     auto cfg = FluorineConfig::load();
+                     if (!cfg.has_value()) {
+                       return;
+                     }
+
+                     const QString protonName =
+                         ui->protonVersionCombo->currentText().trimmed();
+                     const QString protonPath = ui->protonVersionCombo
+                                                    ->itemData(index, Qt::UserRole + 1)
+                                                    .toString()
+                                                    .trimmed();
+
+                     if (protonName.isEmpty() || protonPath.isEmpty()) {
+                       MOBase::log::warn("Proton combo change: name='{}' path='{}' — "
+                                         "skipping save (empty)", protonName, protonPath);
+                       return;
+                     }
+
+                     if (cfg->proton_name != protonName ||
+                         cfg->proton_path != protonPath) {
+                       cfg->proton_name = protonName;
+                       cfg->proton_path = protonPath;
+                       cfg->save();
+                       MOBase::log::info("Updated Proton config: {} ({})",
+                                         protonName, protonPath);
                      }
                    });
 
@@ -89,6 +102,15 @@ ProtonSettingsTab::ProtonSettingsTab(Settings& s, SettingsDialog& d)
 
   QObject::connect(&m_installWatcher, &QFutureWatcher<InstallResult>::finished, this,
                    &ProtonSettingsTab::onInstallFinished);
+
+  // install log viewer
+  ui->nakInstallLog->setVisible(false);
+  QObject::connect(ui->toggleInstallLog, &QPushButton::toggled, this,
+                   [this](bool checked) {
+                     ui->nakInstallLog->setVisible(checked);
+                     ui->toggleInstallLog->setText(
+                         checked ? tr("Hide Install Log") : tr("Show Install Log"));
+                   });
 
   refreshState();
 }
@@ -130,6 +152,17 @@ void ProtonSettingsTab::populateProtons()
     const int idx = ui->protonVersionCombo->findText(cfg->proton_name);
     if (idx >= 0) {
       ui->protonVersionCombo->setCurrentIndex(idx);
+    } else if (ui->protonVersionCombo->count() > 0) {
+      // Saved Proton version no longer exists — select first available and
+      // update the config so the stale path doesn't cause umu-run fallback.
+      MOBase::log::warn("Saved Proton '{}' not found, defaulting to '{}'",
+                        cfg->proton_name,
+                        ui->protonVersionCombo->itemText(0));
+      ui->protonVersionCombo->setCurrentIndex(0);
+      cfg->proton_name = ui->protonVersionCombo->itemText(0).trimmed();
+      cfg->proton_path = ui->protonVersionCombo->itemData(0, Qt::UserRole + 1)
+                             .toString().trimmed();
+      cfg->save();
     }
   }
 }
@@ -206,6 +239,9 @@ void ProtonSettingsTab::onCreatePrefix()
 
   setBusy(true);
   ui->protonStatusLabel->setText(tr("Creating prefix..."));
+  ui->nakInstallLog->clear();
+  ui->nakInstallLog->setVisible(true);
+  ui->toggleInstallLog->setChecked(true);
 
   startInstallTask(0, pfxPath, protonName, protonPath,
                    ui->umuCheckBox->isChecked(),
@@ -254,6 +290,9 @@ void ProtonSettingsTab::onRecreatePrefix()
 
   setBusy(true);
   ui->protonStatusLabel->setText(tr("Recreating prefix..."));
+  ui->nakInstallLog->clear();
+  ui->nakInstallLog->setVisible(true);
+  ui->toggleInstallLog->setChecked(true);
 
   startInstallTask(cfg->app_id, cfg->prefix_path, cfg->proton_name,
                    cfg->proton_path, ui->umuCheckBox->isChecked(),
@@ -543,6 +582,9 @@ void ProtonSettingsTab::showGameRegistryDialog()
 
   setBusy(true);
   ui->protonStatusLabel->setText(tr("Fixing game registries..."));
+  ui->nakInstallLog->clear();
+  ui->nakInstallLog->setVisible(true);
+  ui->toggleInstallLog->setChecked(true);
 
   g_activeInstallTab.store(this);
 
@@ -692,10 +734,24 @@ void ProtonSettingsTab::enqueueProgress(float progress)
                             Qt::QueuedConnection);
 }
 
+void ProtonSettingsTab::appendInstallLog(const QString& message)
+{
+  ui->nakInstallLog->append(message);
+}
+
 void ProtonSettingsTab::statusCallback(const char* message)
 {
   if (auto* tab = g_activeInstallTab.load(); tab != nullptr) {
-    tab->enqueueStatus(QString::fromUtf8(message ? message : ""));
+    const QString msg = QString::fromUtf8(message ? message : "");
+    tab->enqueueStatus(msg);
+
+    if (!msg.isEmpty()) {
+      QMetaObject::invokeMethod(tab,
+                                [tab, msg] {
+                                  tab->appendInstallLog(msg);
+                                },
+                                Qt::QueuedConnection);
+    }
   }
 }
 
@@ -703,6 +759,15 @@ void ProtonSettingsTab::logCallback(const char* message)
 {
   if (message && *message) {
     MOBase::log::info("{}", message);
+  }
+
+  if (auto* tab = g_activeInstallTab.load(); tab != nullptr && message && *message) {
+    const QString msg = QString::fromUtf8(message);
+    QMetaObject::invokeMethod(tab,
+                              [tab, msg] {
+                                tab->appendInstallLog(msg);
+                              },
+                              Qt::QueuedConnection);
   }
 }
 

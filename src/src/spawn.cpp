@@ -643,7 +643,8 @@ int spawn(const SpawnParameters& sp, pid_t& processId)
       .setPreferSystemUmu(
           QSettings().value("fluorine/prefer_system_umu", false).toBool())
       .setUseSteamRun(
-          QSettings().value("fluorine/use_steam_run", false).toBool());
+          QSettings().value("fluorine/use_steam_run", false).toBool())
+      .setHelperProcessOut(sp.helperProcessOut);
 
   const QString prefixPath = resolvePrefixPath();
   if (prefixPath.isEmpty()) {

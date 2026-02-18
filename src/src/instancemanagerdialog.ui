@@ -286,6 +286,34 @@
                  </property>
                 </widget>
                </item>
+               <item row="8" column="0">
+                <widget class="QLabel" name="label_prefix">
+                 <property name="text">
+                  <string>Prefix</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="8" column="1">
+                <widget class="QLineEdit" name="prefixPath">
+                 <property name="readOnly">
+                  <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
+               <item row="9" column="0">
+                <widget class="QLabel" name="label_proton">
+                 <property name="text">
+                  <string>Proton</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="9" column="1">
+                <widget class="QLineEdit" name="protonVersion">
+                 <property name="readOnly">
+                  <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
               </layout>
              </widget>
             </item>
@@ -335,6 +363,16 @@
                 <widget class="QPushButton" name="openINI">
                  <property name="text">
                   <string>Open INI</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="removeFromList">
+                 <property name="text">
+                  <string>Remove from list</string>
+                 </property>
+                 <property name="toolTip">
+                  <string>Remove this instance from the list without deleting any files.</string>
                  </property>
                 </widget>
                </item>

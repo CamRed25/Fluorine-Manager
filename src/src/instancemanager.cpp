@@ -802,9 +802,10 @@ std::unique_ptr<Instance> selectInstance()
   PluginContainer pc(nullptr);
   pc.loadPlugins();
 
-  if (m.hasAnyInstances()) {
-    // there is at least one instance available, show the instance manager
-    // dialog
+  {
+    // show the instance manager dialog; it has both "Create new instance" and
+    // "Open existing portable" buttons, so it works whether or not instances
+    // already exist
     InstanceManagerDialog dlg(pc);
 
     // the dialog normally restarts MO when an instance is selected, but this
@@ -814,14 +815,6 @@ std::unique_ptr<Instance> selectInstance()
     dlg.show();
     dlg.activateWindow();
     dlg.raise();
-
-    if (dlg.exec() != QDialog::Accepted) {
-      return {};
-    }
-
-  } else {
-    // no instances configured, ask the user to create one
-    CreateInstanceDialog dlg(pc, nullptr);
 
     if (dlg.exec() != QDialog::Accepted) {
       return {};

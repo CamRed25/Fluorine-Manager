@@ -179,7 +179,7 @@ QString GameMorrowind::gameNexusName() const
 
 QStringList GameMorrowind::iniFiles() const
 {
-  return {"morrowind.ini"};
+  return {"Morrowind.ini"};
 }
 
 QStringList GameMorrowind::DLCPlugins() const

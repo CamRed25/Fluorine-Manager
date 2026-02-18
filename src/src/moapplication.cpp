@@ -31,6 +31,7 @@ along with Mod Organizer.  If not, see <http://www.gnu.org/licenses/>.
 #include "settings.h"
 #ifndef _WIN32
 #include "fluorineconfig.h"
+#include "fluorinepaths.h"
 #include "fuseconnector.h"
 #include "wineprefix.h"
 #include <cerrno>
@@ -675,13 +676,43 @@ bool MOApplication::setStyleFile(const QString& styleName)
   }
   // set new stylesheet or clear it
   if (styleName.length() != 0) {
-    QString styleSheetName = applicationDirPath() + "/" +
-                             MOBase::ToQString(AppConfig::stylesheetsPath()) + "/" +
-                             styleName;
-    if (QFile::exists(styleSheetName)) {
-      m_styleWatcher.addPath(styleSheetName);
-      updateStyle(styleSheetName);
+    // Search for the stylesheet in multiple locations:
+    //   1. applicationDirPath()/stylesheets/ — bundled themes
+    //   2. instance baseDir/stylesheets/     — instance/portable themes (modlists)
+    //   3. fluorineDataDir()/stylesheets/    — user-installed custom themes
+    const QString ssSubdir = MOBase::ToQString(AppConfig::stylesheetsPath());
+    QStringList searchDirs;
+    searchDirs << applicationDirPath() + "/" + ssSubdir;
+#ifndef _WIN32
+    if (m_instance) {
+      // Prefer baseDirectory() (populated after readFromIni), fall back to
+      // directory() which is always set by the constructor.
+      QString base = m_instance->baseDirectory();
+      if (base.isEmpty())
+        base = m_instance->directory();
+      const QString instanceDir = base + "/" + ssSubdir;
+      if (!searchDirs.contains(instanceDir))
+        searchDirs << instanceDir;
+    }
+    const QString userDir = fluorineDataDir() + "/stylesheets";
+    if (!searchDirs.contains(userDir))
+      searchDirs << userDir;
+#endif
+
+    QString resolved;
+    for (const auto& dir : searchDirs) {
+      QString candidate = dir + "/" + styleName;
+      if (QFile::exists(candidate)) {
+        resolved = candidate;
+        break;
+      }
+    }
+
+    if (!resolved.isEmpty()) {
+      m_styleWatcher.addPath(resolved);
+      updateStyle(resolved);
     } else {
+      // Could be a built-in Qt style name (e.g. "Fusion")
       updateStyle(styleName);
     }
   } else {

@@ -1824,6 +1824,38 @@ If you disable this feature, MO will only display official DLCs this way. Please
             </property>
            </widget>
           </item>
+          <item row="6" column="0" colspan="4">
+           <widget class="QPushButton" name="toggleInstallLog">
+            <property name="text">
+             <string>Show Install Log</string>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+            <property name="checked">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="7" column="0" colspan="4">
+           <widget class="QTextEdit" name="nakInstallLog">
+            <property name="readOnly">
+             <bool>true</bool>
+            </property>
+            <property name="visible">
+             <bool>false</bool>
+            </property>
+            <property name="maximumHeight">
+             <number>200</number>
+            </property>
+            <property name="font">
+             <font>
+              <family>monospace</family>
+              <pointsize>9</pointsize>
+             </font>
+            </property>
+           </widget>
+          </item>
          </layout>
         </widget>
        </item>

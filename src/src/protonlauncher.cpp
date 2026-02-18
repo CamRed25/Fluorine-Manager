@@ -267,6 +267,12 @@ ProtonLauncher& ProtonLauncher::addEnvVar(const QString& key, const QString& val
   return *this;
 }
 
+ProtonLauncher& ProtonLauncher::setHelperProcessOut(QProcess** out)
+{
+  m_helperProcessOut = out;
+  return *this;
+}
+
 std::pair<bool, qint64> ProtonLauncher::launch() const
 {
   qint64 pid = -1;
@@ -349,9 +355,13 @@ bool ProtonLauncher::launchWithProton(qint64& pid) const
     }
   }
 
-  maybeWrapForFlatpak(program, arguments, env);
-
   MOBase::log::info("Proton launch: '{}' run '{}'", protonScript, m_binary);
+
+  if (isFlatpak()) {
+    return launchViaProcessHelper(program, arguments, env, m_workingDir, pid);
+  }
+
+  maybeWrapForFlatpak(program, arguments, env);
   return startDetachedWithEnv(program, arguments, m_workingDir, env, pid);
 }
 
@@ -485,8 +495,6 @@ bool ProtonLauncher::launchWithUmu(qint64& pid) const
     }
   }
 
-  maybeWrapForFlatpak(program, arguments, env);
-
   MOBase::log::info("UMU launch: '{}' '{}' (game id: {}, steam: '{}')", umuRun,
                     m_binary,
                     (effectiveSteamAppId == 0
@@ -494,6 +502,12 @@ bool ProtonLauncher::launchWithUmu(qint64& pid) const
                          : QStringLiteral("umu-") +
                                QString::number(effectiveSteamAppId)),
                     steamPath);
+
+  if (isFlatpak()) {
+    return launchViaProcessHelper(program, arguments, env, m_workingDir, pid);
+  }
+
+  maybeWrapForFlatpak(program, arguments, env);
   return startDetachedWithEnv(program, arguments, m_workingDir, env, pid);
 }
 
@@ -517,9 +531,103 @@ bool ProtonLauncher::launchDirect(qint64& pid) const
     env.insert(it.key(), it.value());
   }
 
-  maybeWrapForFlatpak(program, arguments, env);
+  if (isFlatpak()) {
+    return launchViaProcessHelper(program, arguments, env, m_workingDir, pid);
+  }
 
+  maybeWrapForFlatpak(program, arguments, env);
   return startDetachedWithEnv(program, arguments, m_workingDir, env, pid);
+}
+
+bool ProtonLauncher::launchViaProcessHelper(
+    const QString& program, const QStringList& arguments,
+    const QProcessEnvironment& env, const QString& workingDir,
+    qint64& pid) const
+{
+  const QString helperBin = fluorineDataDir() + QStringLiteral("/bin/mo2-process-helper");
+  if (!QFileInfo::exists(helperBin)) {
+    MOBase::log::warn("mo2-process-helper not found at '{}', falling back to "
+                      "flatpak-spawn direct launch", helperBin);
+    // Fall back to old direct flatpak-spawn path.
+    QString prog = program;
+    QStringList args = arguments;
+    QProcessEnvironment envCopy = env;
+    maybeWrapForFlatpak(prog, args, envCopy);
+    return startDetachedWithEnv(prog, args, workingDir, envCopy, pid);
+  }
+
+  auto* proc = new QProcess();
+  proc->setProcessChannelMode(QProcess::SeparateChannels);
+  proc->start(QStringLiteral("flatpak-spawn"),
+              {QStringLiteral("--host"), helperBin});
+
+  if (!proc->waitForStarted(5000)) {
+    MOBase::log::error("Failed to start flatpak-spawn for process helper");
+    delete proc;
+    return false;
+  }
+
+  // Write config block to helper's stdin.
+  auto writeLine = [&](const QString& line) {
+    proc->write(line.toUtf8());
+    proc->write("\n");
+  };
+
+  writeLine(QStringLiteral("program=") + program);
+  for (const QString& arg : arguments) {
+    writeLine(QStringLiteral("arg=") + arg);
+  }
+
+  // Send env vars that differ from system environment.
+  const QProcessEnvironment sysEnv = QProcessEnvironment::systemEnvironment();
+  for (const QString& key : env.keys()) {
+    const QString val = env.value(key);
+    if (val != sysEnv.value(key)) {
+      writeLine(QStringLiteral("env=") + key + QStringLiteral("=") + val);
+    }
+  }
+
+  if (!workingDir.isEmpty()) {
+    writeLine(QStringLiteral("workdir=") + workingDir);
+  }
+
+  // Blank line terminates config.
+  proc->write("\n");
+  proc->waitForBytesWritten(2000);
+
+  // Read response: "started <pid>" or "error <message>"
+  if (!proc->waitForReadyRead(10000)) {
+    MOBase::log::error("Process helper did not respond in time");
+    proc->kill();
+    proc->waitForFinished(2000);
+    delete proc;
+    return false;
+  }
+
+  const QString response = QString::fromUtf8(proc->readLine()).trimmed();
+  if (response.startsWith(QStringLiteral("started "))) {
+    MOBase::log::info("Process helper: {}", response);
+  } else {
+    MOBase::log::error("Process helper error: {}", response);
+    proc->kill();
+    proc->waitForFinished(2000);
+    delete proc;
+    return false;
+  }
+
+  // Use the flatpak-spawn PID for kill(pid,0) polling.
+  pid = proc->processId();
+
+  // Store the QProcess so it stays alive (keeping flatpak-spawn alive).
+  if (m_helperProcessOut) {
+    *m_helperProcessOut = proc;
+  } else {
+    // No owner provided — leak intentionally to keep the pipe alive.
+    // The process will clean up when the game exits.
+    MOBase::log::debug("No helper process owner set, helper will self-manage");
+  }
+
+  return true;
 }
 
 bool ProtonLauncher::ensureSteamRunning()

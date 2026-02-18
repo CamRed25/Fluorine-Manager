@@ -1067,7 +1067,7 @@ std::optional<int> ListInstancesCommand::runEarly()
   const QStringList searchPaths = {
     QDir::currentPath(),
     QDir::homePath(),
-    QDir(QDir::homePath()).filePath(".local/share/fluorine"),
+    QDir(QDir::homePath()).filePath(".var/app/com.fluorine.manager"),
   };
 
   bool found = false;

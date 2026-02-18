@@ -825,20 +825,33 @@ void Profile::mergeTweak(const QString& tweakName, const QString& tweakedIni) co
     }
   }
 #else
-  // On Linux, use QSettings to read/merge INI tweaks
-  QSettings source(tweakName, QSettings::IniFormat);
-  QSettings dest(tweakedIni, QSettings::IniFormat);
+  // On Linux, parse the tweak INI file line-by-line and merge each
+  // key=value into the destination using WriteRegistryValue (which uses
+  // the safe line-by-line writer that does NOT interpret backslashes as
+  // line continuations or URL-encode spaces in keys).
+  QFile sourceFile(tweakName);
+  if (!sourceFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    log::warn("mergeTweak: could not open tweak file '{}'", tweakName);
+    return;
+  }
 
-  for (const QString& group : source.childGroups()) {
-    source.beginGroup(group);
-    dest.beginGroup(group);
-
-    for (const QString& key : source.childKeys()) {
-      dest.setValue(key, source.value(key));
+  QString currentSection;
+  QTextStream stream(&sourceFile);
+  while (!stream.atEnd()) {
+    QString line = stream.readLine().trimmed();
+    if (line.isEmpty() || line.startsWith(';') || line.startsWith('#')) {
+      continue;
     }
-
-    source.endGroup();
-    dest.endGroup();
+    if (line.startsWith('[') && line.endsWith(']')) {
+      currentSection = line.mid(1, line.length() - 2).trimmed();
+      continue;
+    }
+    const int eqPos = line.indexOf('=');
+    if (eqPos > 0 && !currentSection.isEmpty()) {
+      const QString key   = line.left(eqPos).trimmed();
+      const QString value = line.mid(eqPos + 1).trimmed();
+      MOBase::WriteRegistryValue(currentSection, key, value, tweakedIni);
+    }
   }
 #endif
 }

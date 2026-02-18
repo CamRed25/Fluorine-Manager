@@ -269,6 +269,7 @@ modules:
       # VFS helper (standalone, runs on host for Flatpak FUSE support).
       # Statically linked against libfuse3 — no runtime deps beyond glibc.
       - test -f _build/src/src/mo2-vfs-helper && cp -f _build/src/src/mo2-vfs-helper /app/lib/fluorine/ || true
+      - test -f _build/src/src/mo2-process-helper && cp -f _build/src/src/mo2-process-helper /app/lib/fluorine/ || true
 
       # lootcli.
       - test -f _build/libs/lootcli/src/lootcli && cp -f _build/libs/lootcli/src/lootcli /app/lib/fluorine/ || true
@@ -357,6 +358,7 @@ modules:
       - find /app/lib/fluorine/lib -name "*.so*" -exec strip --strip-unneeded {} \; 2>/dev/null || true
       - test -f /app/lib/fluorine/lootcli && strip --strip-unneeded /app/lib/fluorine/lootcli 2>/dev/null || true
       - test -f /app/lib/fluorine/mo2-vfs-helper && strip --strip-unneeded /app/lib/fluorine/mo2-vfs-helper 2>/dev/null || true
+      - test -f /app/lib/fluorine/mo2-process-helper && strip --strip-unneeded /app/lib/fluorine/mo2-process-helper 2>/dev/null || true
 
       # Install wrapper script, desktop file, metainfo, and icon.
       - install -Dm755 flatpak/fluorine-manager-wrapper.sh /app/bin/fluorine-manager
