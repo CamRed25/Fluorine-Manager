@@ -2173,6 +2173,14 @@ bool OrganizerCore::beforeRun(
       WinePrefix prefix(prefixPathStr);
       if (prefix.isValid()) {
         const QString dataDirName = resolveWineDataDirName(managedGame());
+        const QString appDataLocal = prefix.appdataLocal();
+        const QString pluginsTargetDir =
+            QDir(appDataLocal).filePath(dataDirName);
+        const QString documentsDir =
+            resolvePrefixGameDocumentsDir(prefix, dataDirName);
+        log::info("Wine prefix paths: AppData/Local plugins dir='{}', "
+                  "Documents/My Games INI dir='{}'",
+                  pluginsTargetDir, documentsDir);
         const auto localSavesFeature = gameFeatures().gameFeature<LocalSavegames>();
         const QString saveRelativePath =
             resolveSaveRelativePath(m_CurrentProfile, managedGame(),

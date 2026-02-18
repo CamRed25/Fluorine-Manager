@@ -831,7 +831,13 @@ void Profile::mergeTweak(const QString& tweakName, const QString& tweakedIni) co
   // line continuations or URL-encode spaces in keys).
   QFile sourceFile(tweakName);
   if (!sourceFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-    log::warn("mergeTweak: could not open tweak file '{}'", tweakName);
+    if (QFileInfo::exists(tweakName)) {
+      log::warn("mergeTweak: tweak file '{}' exists but could not be opened",
+                tweakName);
+    } else {
+      log::debug("mergeTweak: tweak file '{}' does not exist, skipping",
+                 tweakName);
+    }
     return;
   }
 
